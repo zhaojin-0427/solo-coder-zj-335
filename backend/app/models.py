@@ -182,6 +182,7 @@ class BatteryRecord(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
+        safe_usage_days = self.usage_days if (self.usage_days is not None and self.usage_days > 0) else None
         return {
             'id': self.id,
             'profile_id': self.profile_id,
@@ -189,8 +190,8 @@ class BatteryRecord(db.Model):
             'ear': self.ear,
             'battery_type': self.battery_type,
             'battery_brand': self.battery_brand,
-            'last_change_date': self.last_change_date.isoformat() if self.last_change_date else None,
-            'usage_days': self.usage_days,
+            'last_change_date': self.last_change_date.isoformat() if (self.last_change_date and safe_usage_days) else None,
+            'usage_days': safe_usage_days,
             'notes': self.notes,
             'created_at': self.created_at.isoformat()
         }

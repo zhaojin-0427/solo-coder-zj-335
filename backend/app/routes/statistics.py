@@ -95,7 +95,7 @@ def get_battery_cycle(profile_id):
     right_data = []
     
     for r in records:
-        if r.usage_days:
+        if r.usage_days is not None and r.usage_days > 0:
             item = {
                 'date': r.change_date.isoformat(),
                 'usage_days': r.usage_days,
@@ -327,7 +327,7 @@ def _calc_ear_metrics(records_asc, today):
             'abnormal_cycles': []
         }
 
-    usage_records = [r for r in records_asc if r.usage_days is not None]
+    usage_records = [r for r in records_asc if r.usage_days is not None and r.usage_days > 0]
     count = len(records_asc)
     last_record = records_asc[-1]
     last_change_date = last_record.change_date
@@ -398,6 +398,7 @@ def get_battery_warnings():
     abnormal_list = []
     normal_count = 0
     no_data_count = 0
+    has_abnormal_count = 0
 
     for profile in profiles:
         records = BatteryRecord.query.filter_by(
@@ -411,13 +412,13 @@ def get_battery_warnings():
         right_metrics = _calc_ear_metrics(right_records, today)
 
         all_abnormal = left_metrics['abnormal_cycles'] + right_metrics['abnormal_cycles']
+        has_abnormal = len(all_abnormal) > 0
+
         global_status = 'normal'
         if left_metrics['status'] == 'overdue' or right_metrics['status'] == 'overdue':
             global_status = 'overdue'
         elif left_metrics['status'] == 'soon_due' or right_metrics['status'] == 'soon_due':
             global_status = 'soon_due'
-        elif all_abnormal:
-            global_status = 'abnormal'
         elif left_metrics['status'] == 'no_data' and right_metrics['status'] == 'no_data':
             global_status = 'no_data'
 
@@ -451,14 +452,17 @@ def get_battery_warnings():
             overdue_list.append(profile_summary)
         elif global_status == 'soon_due':
             soon_due_list.append(profile_summary)
-        elif global_status == 'abnormal':
-            abnormal_list.append(profile_summary)
         elif global_status == 'normal':
             normal_count += 1
-        else:
+        elif global_status == 'no_data':
             no_data_count += 1
 
+        if has_abnormal:
+            has_abnormal_count += 1
+            abnormal_list.append(profile_summary)
+
     overdue_list.sort(key=lambda p: max(p['left_ear']['overdue_days'], p['right_ear']['overdue_days']), reverse=True)
+    abnormal_list.sort(key=lambda p: len(p['abnormal_cycles']), reverse=True)
 
     return jsonify({
         'today': today.isoformat(),
@@ -467,7 +471,7 @@ def get_battery_warnings():
             'total_profiles': len(profiles),
             'overdue_count': len(overdue_list),
             'soon_due_count': len(soon_due_list),
-            'abnormal_count': len(abnormal_list),
+            'abnormal_count': has_abnormal_count,
             'normal_count': normal_count,
             'no_data_count': no_data_count
         },

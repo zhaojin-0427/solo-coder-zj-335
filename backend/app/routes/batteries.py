@@ -38,7 +38,7 @@ def _calc_ear_metrics(records_asc, today):
             'abnormal_cycles': []
         }
 
-    usage_records = [r for r in records_asc if r.usage_days is not None]
+    usage_records = [r for r in records_asc if r.usage_days is not None and r.usage_days > 0]
     count = len(records_asc)
     last_record = records_asc[-1]
     last_change_date = last_record.change_date

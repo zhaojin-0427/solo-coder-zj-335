@@ -268,7 +268,7 @@
             <el-table-column prop="battery_brand" label="品牌" />
             <el-table-column label="使用天数" width="140">
               <template #default="{ row }">
-                <span v-if="row.usage_days != null">
+                <span v-if="row.usage_days != null && row.usage_days > 0">
                   <span
                     :class="{
                       'text-warning': isCycleAbnormal(row),

@@ -5,6 +5,18 @@ import os
 
 db = SQLAlchemy()
 
+def _repair_negative_usage_days(app):
+    from app.models import BatteryRecord
+    with app.app_context():
+        invalid_records = BatteryRecord.query.filter(
+            (BatteryRecord.usage_days < 0) | (BatteryRecord.usage_days == 0)
+        ).all()
+        if invalid_records:
+            for r in invalid_records:
+                r.usage_days = None
+                r.last_change_date = None
+            db.session.commit()
+
 def create_app():
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -25,5 +37,7 @@ def create_app():
     
     with app.app_context():
         db.create_all()
+    
+    _repair_negative_usage_days(app)
     
     return app
