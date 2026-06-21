@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from collections import defaultdict
 from app import db
-from app.models import Feedback, Adjustment, Followup, BatteryRecord, Profile
+from app.models import Feedback, Adjustment, Followup, BatteryRecord, Profile, Task
 
 bp = Blueprint('statistics', __name__)
 
@@ -478,4 +478,135 @@ def get_battery_warnings():
         'overdue': overdue_list,
         'soon_due': soon_due_list,
         'abnormal': abnormal_list
+    })
+
+
+@bp.route('/task-overview', methods=['GET'])
+def get_task_overview():
+    today = datetime.now().date()
+
+    all_tasks = Task.query.all()
+    total = len(all_tasks)
+
+    completed_count = sum(1 for t in all_tasks if t.status == 'completed')
+    pending_count = sum(1 for t in all_tasks if t.status == 'pending')
+    in_progress_count = sum(1 for t in all_tasks if t.status == 'in_progress')
+    cancelled_count = sum(1 for t in all_tasks if t.status == 'cancelled')
+
+    overdue_count = 0
+    for t in all_tasks:
+        if t.due_date and t.status != 'completed' and t.due_date < today:
+            overdue_count += 1
+
+    soon_due_count = 0
+    for t in all_tasks:
+        if t.due_date and t.status != 'completed':
+            delta = (t.due_date - today).days
+            if 0 <= delta <= 3:
+                soon_due_count += 1
+
+    completion_rate = round((completed_count / total * 100), 1) if total > 0 else 0
+
+    type_distribution = defaultdict(int)
+    for t in all_tasks:
+        type_distribution[t.task_type] += 1
+
+    type_data = []
+    for task_type, count in type_distribution.items():
+        type_data.append({
+            'type': task_type,
+            'count': count,
+            'percentage': round((count / total * 100), 1) if total > 0 else 0
+        })
+    type_data.sort(key=lambda x: x['count'], reverse=True)
+
+    profile_tasks = defaultdict(lambda: {
+        'profile_id': None,
+        'elderly_name': None,
+        'total': 0,
+        'pending': 0,
+        'in_progress': 0,
+        'completed': 0,
+        'overdue': 0,
+        'soon_due': 0
+    })
+
+    for t in all_tasks:
+        profile = Profile.query.get(t.profile_id)
+        if not profile:
+            continue
+        pt = profile_tasks[t.profile_id]
+        pt['profile_id'] = t.profile_id
+        pt['elderly_name'] = profile.elderly_name
+        pt['total'] += 1
+        if t.status == 'pending':
+            pt['pending'] += 1
+        elif t.status == 'in_progress':
+            pt['in_progress'] += 1
+        elif t.status == 'completed':
+            pt['completed'] += 1
+
+        if t.due_date and t.status != 'completed':
+            delta = (t.due_date - today).days
+            if delta < 0:
+                pt['overdue'] += 1
+            elif delta <= 3:
+                pt['soon_due'] += 1
+
+    by_profile = list(profile_tasks.values())
+    by_profile.sort(key=lambda x: (x['overdue'] + x['pending']), reverse=True)
+
+    return jsonify({
+        'today': today.isoformat(),
+        'summary': {
+            'total': total,
+            'completed': completed_count,
+            'pending': pending_count,
+            'in_progress': in_progress_count,
+            'cancelled': cancelled_count,
+            'overdue': overdue_count,
+            'soon_due': soon_due_count,
+            'completion_rate': completion_rate
+        },
+        'type_distribution': type_data,
+        'by_profile': by_profile
+    })
+
+
+@bp.route('/task-summary/<int:profile_id>', methods=['GET'])
+def get_task_summary(profile_id):
+    today = datetime.now().date()
+    tasks = Task.query.filter_by(profile_id=profile_id).all()
+
+    total = len(tasks)
+    completed = sum(1 for t in tasks if t.status == 'completed')
+    pending = sum(1 for t in tasks if t.status == 'pending')
+    in_progress = sum(1 for t in tasks if t.status == 'in_progress')
+
+    overdue = 0
+    soon_due = 0
+    for t in tasks:
+        if t.due_date and t.status != 'completed':
+            delta = (t.due_date - today).days
+            if delta < 0:
+                overdue += 1
+            elif delta <= 3:
+                soon_due += 1
+
+    completion_rate = round((completed / total * 100), 1) if total > 0 else 0
+
+    recent_tasks = sorted(tasks, key=lambda t: t.created_at, reverse=True)[:5]
+
+    return jsonify({
+        'profile_id': profile_id,
+        'summary': {
+            'total': total,
+            'completed': completed,
+            'pending': pending,
+            'in_progress': in_progress,
+            'overdue': overdue,
+            'soon_due': soon_due,
+            'completion_rate': completion_rate
+        },
+        'recent_tasks': [t.to_dict() for t in recent_tasks]
     })

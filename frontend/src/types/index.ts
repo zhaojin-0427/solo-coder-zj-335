@@ -203,3 +203,104 @@ export interface BatteryWarnings {
   soon_due: BatteryWarningProfile[]
   abnormal: BatteryWarningProfile[]
 }
+
+export interface Task {
+  id?: number
+  profile_id: number
+  elderly_name?: string
+  title: string
+  task_type: string
+  description?: string
+  assignee?: string
+  due_date?: string
+  priority?: 'low' | 'medium' | 'high' | 'urgent'
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  notes?: string
+  completion_feedback?: string
+  completed_at?: string
+  related_feedback_id?: number
+  related_adjustment_id?: number
+  related_followup_id?: number
+  is_overdue?: boolean
+  days_until_due?: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface TaskMeta {
+  task_types: string[]
+  statuses: string[]
+  priorities: string[]
+  status_labels: Record<string, string>
+  priority_labels: Record<string, string>
+}
+
+export interface TaskTypeDistribution {
+  type: string
+  count: number
+  percentage: number
+}
+
+export interface TaskProfileSummary {
+  profile_id: number
+  elderly_name: string
+  total: number
+  pending: number
+  in_progress: number
+  completed: number
+  overdue: number
+  soon_due: number
+}
+
+export interface TaskOverview {
+  today: string
+  summary: {
+    total: number
+    completed: number
+    pending: number
+    in_progress: number
+    cancelled: number
+    overdue: number
+    soon_due: number
+    completion_rate: number
+  }
+  type_distribution: TaskTypeDistribution[]
+  by_profile: TaskProfileSummary[]
+}
+
+export interface TaskSummary {
+  profile_id: number
+  summary: {
+    total: number
+    completed: number
+    pending: number
+    in_progress: number
+    overdue: number
+    soon_due: number
+    completion_rate: number
+  }
+  recent_tasks: Task[]
+}
+
+export const TASK_TYPES = [
+  { value: '提醒佩戴', label: '提醒佩戴', icon: '👂' },
+  { value: '提醒清洁耳塞', label: '提醒清洁耳塞', icon: '🧹' },
+  { value: '预约复诊', label: '预约复诊', icon: '📅' },
+  { value: '购买电池', label: '购买电池', icon: '🔋' },
+  { value: '观察特定场景听感', label: '观察特定场景听感', icon: '👀' },
+  { value: '其他', label: '其他', icon: '📝' }
+]
+
+export const TASK_PRIORITIES = [
+  { value: 'low', label: '低', color: '#909399' },
+  { value: 'medium', label: '中', color: '#409eff' },
+  { value: 'high', label: '高', color: '#e6a23c' },
+  { value: 'urgent', label: '紧急', color: '#f56c6c' }
+]
+
+export const TASK_STATUSES = [
+  { value: 'pending', label: '待处理', color: '#909399' },
+  { value: 'in_progress', label: '进行中', color: '#409eff' },
+  { value: 'completed', label: '已完成', color: '#67c23a' },
+  { value: 'cancelled', label: '已取消', color: '#c0c4cc' }
+]

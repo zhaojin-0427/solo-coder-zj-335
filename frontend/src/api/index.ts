@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings } from '@/types'
+import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings, Task, TaskMeta, TaskOverview, TaskSummary } from '@/types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -76,7 +76,26 @@ export const statisticsApi = {
     const params = days ? { days } : {}
     return api.get(`/statistics/trends/${profileId}`, { params })
   },
-  getBatteryWarnings: () => api.get<BatteryWarnings>('/statistics/battery-warnings')
+  getBatteryWarnings: () => api.get<BatteryWarnings>('/statistics/battery-warnings'),
+  getTaskOverview: () => api.get<TaskOverview>('/statistics/task-overview'),
+  getTaskSummary: (profileId: number) => api.get<TaskSummary>(`/statistics/task-summary/${profileId}`)
+}
+
+export const taskApi = {
+  getAll: (profileId?: number, status?: string, taskType?: string, isOverdue?: boolean) => {
+    const params: Record<string, any> = {}
+    if (profileId) params.profile_id = profileId
+    if (status) params.status = status
+    if (taskType) params.task_type = taskType
+    if (isOverdue !== undefined) params.is_overdue = isOverdue
+    return api.get<Task[]>('/tasks', { params })
+  },
+  get: (id: number) => api.get<Task>(`/tasks/${id}`),
+  create: (data: Task) => api.post<Task>('/tasks', data),
+  update: (id: number, data: Partial<Task>) => api.put<Task>(`/tasks/${id}`, data),
+  complete: (id: number, completionFeedback?: string) => api.post<Task>(`/tasks/${id}/complete`, { completion_feedback: completionFeedback }),
+  delete: (id: number) => api.delete(`/tasks/${id}`),
+  getMeta: () => api.get<TaskMeta>('/tasks/meta')
 }
 
 export default api

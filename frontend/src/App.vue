@@ -33,6 +33,10 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>统计分析</span>
         </el-menu-item>
+        <el-menu-item index="/tasks">
+          <el-icon><Tickets /></el-icon>
+          <span>任务中心</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -73,7 +77,8 @@ const breadcrumbs = computed(() => {
     '/feedback': '场景反馈',
     '/adjustments': '调试记录',
     '/followups': '复诊跟踪',
-    '/statistics': '统计分析'
+    '/statistics': '统计分析',
+    '/tasks': '任务中心'
   }
   const result: { path: string; label: string }[] = []
   let current = ''

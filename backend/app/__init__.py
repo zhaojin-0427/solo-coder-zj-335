@@ -27,13 +27,14 @@ def create_app():
     
     db.init_app(app)
     
-    from app.routes import profiles, feedback, adjustments, followups, statistics, batteries
+    from app.routes import profiles, feedback, adjustments, followups, statistics, batteries, tasks
     app.register_blueprint(profiles.bp, url_prefix='/api/profiles')
     app.register_blueprint(feedback.bp, url_prefix='/api/feedback')
     app.register_blueprint(adjustments.bp, url_prefix='/api/adjustments')
     app.register_blueprint(followups.bp, url_prefix='/api/followups')
     app.register_blueprint(statistics.bp, url_prefix='/api/statistics')
     app.register_blueprint(batteries.bp, url_prefix='/api/batteries')
+    app.register_blueprint(tasks.bp, url_prefix='/api/tasks')
     
     with app.app_context():
         db.create_all()

@@ -272,6 +272,121 @@
         </el-col>
       </el-row>
 
+      <el-row :gutter="20" style="margin-bottom: 20px">
+        <el-col :span="24">
+          <div class="card">
+            <div class="page-header" style="border: none; margin: 0; padding: 0; margin-bottom: 16px">
+              <h3 style="font-size: 16px; margin: 0">
+                <el-icon color="#409eff" style="margin-right: 8px"><Tickets /></el-icon>
+                协作任务统计
+              </h3>
+              <el-button type="primary" size="small" @click="goToTaskCenter">
+                <el-icon><ArrowRight /></el-icon>
+                前往任务中心
+              </el-button>
+            </div>
+
+            <el-row :gutter="16" style="margin-bottom: 16px">
+              <el-col :span="4">
+                <div class="mini-stat primary">
+                  <div class="mini-stat-value">{{ taskSummary?.total || 0 }}</div>
+                  <div class="mini-stat-label">任务总数</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat success">
+                  <div class="mini-stat-value">{{ taskSummary?.completion_rate || 0 }}%</div>
+                  <div class="mini-stat-label">完成率</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat danger">
+                  <div class="mini-stat-value">{{ taskSummary?.overdue || 0 }}</div>
+                  <div class="mini-stat-label">逾期任务</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat warning">
+                  <div class="mini-stat-value">{{ taskSummary?.soon_due || 0 }}</div>
+                  <div class="mini-stat-label">即将到期</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat info">
+                  <div class="mini-stat-value">{{ taskSummary?.pending || 0 }}</div>
+                  <div class="mini-stat-label">待处理</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat abnormal">
+                  <div class="mini-stat-value">{{ taskSummary?.in_progress || 0 }}</div>
+                  <div class="mini-stat-label">进行中</div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <h4 style="margin-bottom: 12px; font-size: 14px; color: #606266">各类型任务分布</h4>
+                <v-chart style="width: 100%; height: 280px" :option="taskTypeChartOption" autoresize />
+              </el-col>
+              <el-col :span="12">
+                <h4 style="margin-bottom: 12px; font-size: 14px; color: #606266">每位老人待办数量（Top 10</h4>
+                <v-chart style="width: 100%; height: 280px" :option="taskByProfileChartOption" autoresize />
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="20" style="margin-top: 16px" v-if="taskByProfile.length > 0">
+              <el-col :span="24">
+                <h4 style="margin-bottom: 12px; font-size: 14px; color: #606266">老人任务详情一览</h4>
+                <el-table :data="taskByProfile" size="small" stripe>
+                  <el-table-column label="老人姓名" width="120">
+                    <template #default="{ row }">
+                      <strong>{{ row.elderly_name }}</strong>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="任务总数" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag type="primary" size="small">{{ row.total }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="待处理" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.pending > 0" type="info" size="small">{{ row.pending }}</el-tag>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="进行中" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.in_progress > 0" type="primary" size="small">{{ row.in_progress }}</el-tag>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="已完成" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.completed > 0" type="success" size="small">{{ row.completed }}</el-tag>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="已逾期" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.overdue > 0" type="danger" effect="dark" size="small">{{ row.overdue }}</el-tag>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="即将到期" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.soon_due > 0" type="warning" size="small">{{ row.soon_due }}</el-tag>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-col>
+            </el-row>
+          </div>
+        </el-col>
+      </el-row>
+
       <el-row :gutter="20">
         <el-col :span="12">
           <div class="card">
@@ -429,7 +544,8 @@ import {
   TrendCharts,
   DataLine,
   WarningFilled,
-  BellFilled
+  BellFilled,
+  ArrowRight
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -443,7 +559,7 @@ import {
   DatasetComponent
 } from 'echarts/components'
 import { profileApi, statisticsApi } from '@/api'
-import type { Profile, BatteryWarnings, BatteryWarningProfile } from '@/types'
+import type { Profile, BatteryWarnings, BatteryWarningProfile, TaskOverview } from '@/types'
 
 use([
   CanvasRenderer,
@@ -471,10 +587,23 @@ const batteryCycle = ref<any>()
 const improvementRate = ref<any>()
 const trends = ref<any[]>([])
 const batteryWarnings = ref<BatteryWarnings>()
+const taskOverview = ref<TaskOverview>()
 
 const improvementSummary = computed(() => improvementRate.value?.summary || {})
 const batteryLeftStats = computed(() => batteryCycle.value?.left_ear?.stats || {})
 const batteryRightStats = computed(() => batteryCycle.value?.right_ear?.stats || {})
+const taskSummary = computed(() => taskOverview.value?.summary || {
+  total: 0,
+  completed: 0,
+  pending: 0,
+  in_progress: 0,
+  cancelled: 0,
+  overdue: 0,
+  soon_due: 0,
+  completion_rate: 0
+})
+const taskTypeDistribution = computed(() => taskOverview.value?.type_distribution || [])
+const taskByProfile = computed(() => taskOverview.value?.by_profile || [])
 
 const discomfortChartOption = computed(() => {
   const data = discomfortScenarios.value.slice(0, 7)
@@ -736,6 +865,100 @@ const trendChartOption = computed(() => {
   }
 })
 
+const taskTypeChartOption = computed(() => {
+  const data = taskTypeDistribution.value.map(d => ({
+    value: d.count,
+    name: d.type,
+    percentage: d.percentage
+  }))
+  const colors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#9c27b0', '#909399']
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c}次 ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left'
+    },
+    color: colors,
+    series: [
+      {
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{d}%'
+        },
+        data: data
+      }
+    ]
+  }
+})
+
+const taskByProfileChartOption = computed(() => {
+  const data = taskByProfile.value.slice(0, 10)
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
+    },
+    legend: {
+      data: ['待处理', '进行中', '已逾期', '即将到期']
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      minInterval: 1
+    },
+    yAxis: {
+      type: 'category',
+      data: data.map(d => d.elderly_name)
+    },
+    series: [
+      {
+        name: '待处理',
+        type: 'bar',
+        stack: 'total',
+        data: data.map(d => d.pending),
+        itemStyle: { color: '#909399' }
+      },
+      {
+        name: '进行中',
+        type: 'bar',
+        stack: 'total',
+        data: data.map(d => d.in_progress),
+        itemStyle: { color: '#409eff' }
+      },
+      {
+        name: '即将到期',
+        type: 'bar',
+        stack: 'total',
+        data: data.map(d => d.soon_due),
+        itemStyle: { color: '#e6a23c' }
+      },
+      {
+        name: '已逾期',
+        type: 'bar',
+        stack: 'total',
+        data: data.map(d => d.overdue),
+        itemStyle: { color: '#f56c6c' }
+      }
+    ]
+  }
+})
+
 const getTrendTagType = (trend?: string) => {
   if (trend === 'improving') return 'success'
   if (trend === 'declining') return 'danger'
@@ -794,6 +1017,19 @@ const loadBatteryWarnings = async () => {
   }
 }
 
+const loadTaskOverview = async () => {
+  try {
+    const res = await statisticsApi.getTaskOverview()
+    taskOverview.value = res.data
+  } catch (e) {
+    // non-critical, fail silently
+  }
+}
+
+const goToTaskCenter = () => {
+  router.push('/tasks')
+}
+
 const loadAllData = async () => {
   if (!selectedProfileId.value) return
   loading.value = true
@@ -831,6 +1067,7 @@ const loadTrends = async () => {
 onMounted(() => {
   loadProfiles()
   loadBatteryWarnings()
+  loadTaskOverview()
 })
 </script>
 

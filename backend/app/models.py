@@ -195,3 +195,61 @@ class BatteryRecord(db.Model):
             'notes': self.notes,
             'created_at': self.created_at.isoformat()
         }
+
+
+class Task(db.Model):
+    __tablename__ = 'tasks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    task_type = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    assignee = db.Column(db.String(100))
+    due_date = db.Column(db.Date)
+    priority = db.Column(db.String(20), default='medium')
+    status = db.Column(db.String(20), default='pending')
+    notes = db.Column(db.Text)
+    completion_feedback = db.Column(db.Text)
+    completed_at = db.Column(db.DateTime)
+
+    related_feedback_id = db.Column(db.Integer, db.ForeignKey('feedback.id'))
+    related_adjustment_id = db.Column(db.Integer, db.ForeignKey('adjustments.id'))
+    related_followup_id = db.Column(db.Integer, db.ForeignKey('followups.id'))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        from app import db
+        profile = Profile.query.get(self.profile_id)
+        is_overdue = False
+        days_until_due = None
+        if self.due_date and self.status != 'completed':
+            today = datetime.utcnow().date()
+            delta = (self.due_date - today).days
+            days_until_due = delta
+            is_overdue = delta < 0
+
+        return {
+            'id': self.id,
+            'profile_id': self.profile_id,
+            'elderly_name': profile.elderly_name if profile else None,
+            'title': self.title,
+            'task_type': self.task_type,
+            'description': self.description,
+            'assignee': self.assignee,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'priority': self.priority,
+            'status': self.status,
+            'notes': self.notes,
+            'completion_feedback': self.completion_feedback,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'related_feedback_id': self.related_feedback_id,
+            'related_adjustment_id': self.related_adjustment_id,
+            'related_followup_id': self.related_followup_id,
+            'is_overdue': is_overdue,
+            'days_until_due': days_until_due,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
