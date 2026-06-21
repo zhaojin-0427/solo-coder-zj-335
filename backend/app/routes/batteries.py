@@ -82,13 +82,19 @@ def get_battery_stats(profile_id):
     
     def calc_stats(recs):
         if not recs:
-            return {'count': 0, 'avg_days': 0, 'min_days': 0, 'max_days': 0}
+            return {'count': 0, 'avg_days': 0, 'min_days': 0, 'max_days': 0, 'avg': 0, 'min': 0, 'max': 0}
         days = [r.usage_days for r in recs]
+        avg_val = round(sum(days) / len(days), 1)
+        min_val = min(days)
+        max_val = max(days)
         return {
             'count': len(recs),
-            'avg_days': round(sum(days) / len(days), 1),
-            'min_days': min(days),
-            'max_days': max(days)
+            'avg_days': avg_val,
+            'min_days': min_val,
+            'max_days': max_val,
+            'avg': avg_val,
+            'min': min_val,
+            'max': max_val
         }
     
     def get_next_change(recs):

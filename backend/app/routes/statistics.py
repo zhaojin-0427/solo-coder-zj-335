@@ -24,9 +24,9 @@ def get_discomfort_scenarios(profile_id):
         sd['total'] += 1
         if f.hearing_experience in ['差', '很差']:
             sd['poor_hearing'] += 1
-        if f.howling in ['经常', '偶尔']:
+        if f.howling in ['偶尔', '经常', '严重']:
             sd['howling'] += 1
-        if f.discomfort in ['有', '严重']:
+        if f.discomfort in ['轻微', '有', '严重']:
             sd['discomfort'] += 1
         if f.overall_rating:
             sd['ratings'].append(f.overall_rating)

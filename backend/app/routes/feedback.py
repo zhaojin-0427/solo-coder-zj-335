@@ -88,9 +88,9 @@ def get_suggestions(profile_id):
         scenario_stats[f.scenario]['count'] += 1
         if f.hearing_experience in ['差', '很差']:
             scenario_stats[f.scenario]['poor_hearing'] += 1
-        if f.howling in ['经常', '偶尔']:
+        if f.howling in ['偶尔', '经常', '严重']:
             scenario_stats[f.scenario]['howling'] += 1
-        if f.discomfort in ['有', '严重']:
+        if f.discomfort in ['轻微', '有', '严重']:
             scenario_stats[f.scenario]['discomfort'] += 1
         if f.overall_rating:
             scenario_stats[f.scenario]['ratings'].append(f.overall_rating)
