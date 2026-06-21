@@ -117,38 +117,148 @@
       <el-tab-pane label="电池管理" name="battery">
         <div class="card">
           <div class="page-header" style="border: none; margin: 0; padding: 0; margin-bottom: 20px">
-            <h3 style="font-size: 18px; margin: 0">电池更换记录</h3>
+            <div style="display: flex; align-items: center; gap: 12px">
+              <h3 style="font-size: 18px; margin: 0">电池更换记录</h3>
+              <el-tag v-if="batteryStats?.status === 'overdue'" type="danger" effect="dark">
+                <el-icon style="margin-right: 4px"><WarningFilled /></el-icon>
+                电池已逾期
+              </el-tag>
+              <el-tag v-else-if="batteryStats?.status === 'soon_due'" type="warning" effect="dark">
+                <el-icon style="margin-right: 4px"><Clock /></el-icon>
+                即将到期
+              </el-tag>
+              <el-tag v-else-if="batteryStats?.status === 'abnormal'" type="warning">
+                <el-icon style="margin-right: 4px"><Warning /></el-icon>
+                周期异常
+              </el-tag>
+            </div>
             <el-button type="primary" size="small" @click="openBatteryDialog">
               <el-icon><Plus /></el-icon>
               记录更换
             </el-button>
           </div>
+
+          <el-alert
+            v-if="allAbnormalCycles.length > 0"
+            :title="`检测到 ${allAbnormalCycles.length} 条周期异常记录，请关注`"
+            type="warning"
+            :closable="false"
+            style="margin-bottom: 20px"
+            show-icon
+          >
+            <div style="margin-top: 8px">
+              <div v-for="ab in allAbnormalCycles" :key="ab.id" style="font-size: 13px; margin-bottom: 4px">
+                <el-tag size="small" type="warning" style="margin-right: 8px">
+                  {{ ab.change_date }}
+                </el-tag>
+                {{ ab.reason }}
+              </div>
+            </div>
+          </el-alert>
+
           <el-row :gutter="20" style="margin-bottom: 20px">
             <el-col :span="12">
-              <div class="card" style="background: linear-gradient(135deg, #e3f2fd; margin: 0">
-              <h4 style="margin-bottom: 12px">左耳电池</h4>
-              <el-descriptions :column="2" size="small">
-                <el-descriptions-item label="平均使用天数">{{ batteryStats?.left_ear?.avg || 0 }} 天</el-descriptions-item>
-                <el-descriptions-item label="下次预计更换">{{ batteryStats?.next_left_change || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="最短使用">{{ batteryStats?.left_ear?.min || 0 }} 天</el-descriptions-item>
-                <el-descriptions-item label="最长使用">{{ batteryStats?.left_ear?.max || 0 }} 天</el-descriptions-item>
-              </el-descriptions>
-            </div>
+              <div class="card ear-card" style="background: linear-gradient(135deg, #e3f2fd; margin: 0">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+                  <h4 style="margin: 0">左耳电池</h4>
+                  <el-tag
+                    v-if="batteryStats?.left_ear?.status === 'overdue'"
+                    type="danger"
+                    effect="dark"
+                    size="small"
+                  >
+                    已逾期 {{ batteryStats?.left_ear?.overdue_days }} 天
+                  </el-tag>
+                  <el-tag
+                    v-else-if="batteryStats?.left_ear?.status === 'soon_due'"
+                    type="warning"
+                    effect="dark"
+                    size="small"
+                  >
+                    即将到期
+                  </el-tag>
+                  <el-tag
+                    v-else-if="batteryStats?.left_ear?.status === 'normal'"
+                    type="success"
+                    size="small"
+                  >
+                    正常
+                  </el-tag>
+                  <el-tag v-else type="info" size="small">暂无数据</el-tag>
+                </div>
+                <el-descriptions :column="2" size="small" border>
+                  <el-descriptions-item label="最近更换">
+                    {{ batteryStats?.left_ear?.last_change_date || '-' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="平均周期">
+                    {{ batteryStats?.left_ear?.avg_cycle_days || 0 }} 天
+                  </el-descriptions-item>
+                  <el-descriptions-item label="预计下次">
+                    <span :class="{ 'text-danger': batteryStats?.left_ear?.status === 'overdue' }">
+                      {{ batteryStats?.left_ear?.next_expected_date || '-' }}
+                    </span>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="最短/最长">
+                    {{ batteryStats?.left_ear?.min_cycle_days || 0 }} / {{ batteryStats?.left_ear?.max_cycle_days || 0 }} 天
+                  </el-descriptions-item>
+                </el-descriptions>
+              </div>
             </el-col>
             <el-col :span="12">
-              <div class="card" style="background: linear-gradient(135deg, #f3e5f5; margin: 0">
-              <h4 style="margin-bottom: 12px">右耳电池</h4>
-              <el-descriptions :column="2" size="small">
-                <el-descriptions-item label="平均使用天数">{{ batteryStats?.right_ear?.avg || 0 }} 天</el-descriptions-item>
-                <el-descriptions-item label="下次预计更换">{{ batteryStats?.next_right_change || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="最短使用">{{ batteryStats?.right_ear?.min || 0 }} 天</el-descriptions-item>
-                <el-descriptions-item label="最长使用">{{ batteryStats?.right_ear?.max || 0 }} 天</el-descriptions-item>
-              </el-descriptions>
-            </div>
+              <div class="card ear-card" style="background: linear-gradient(135deg, #f3e5f5; margin: 0">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+                  <h4 style="margin: 0">右耳电池</h4>
+                  <el-tag
+                    v-if="batteryStats?.right_ear?.status === 'overdue'"
+                    type="danger"
+                    effect="dark"
+                    size="small"
+                  >
+                    已逾期 {{ batteryStats?.right_ear?.overdue_days }} 天
+                  </el-tag>
+                  <el-tag
+                    v-else-if="batteryStats?.right_ear?.status === 'soon_due'"
+                    type="warning"
+                    effect="dark"
+                    size="small"
+                  >
+                    即将到期
+                  </el-tag>
+                  <el-tag
+                    v-else-if="batteryStats?.right_ear?.status === 'normal'"
+                    type="success"
+                    size="small"
+                  >
+                    正常
+                  </el-tag>
+                  <el-tag v-else type="info" size="small">暂无数据</el-tag>
+                </div>
+                <el-descriptions :column="2" size="small" border>
+                  <el-descriptions-item label="最近更换">
+                    {{ batteryStats?.right_ear?.last_change_date || '-' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="平均周期">
+                    {{ batteryStats?.right_ear?.avg_cycle_days || 0 }} 天
+                  </el-descriptions-item>
+                  <el-descriptions-item label="预计下次">
+                    <span :class="{ 'text-danger': batteryStats?.right_ear?.status === 'overdue' }">
+                      {{ batteryStats?.right_ear?.next_expected_date || '-' }}
+                    </span>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="最短/最长">
+                    {{ batteryStats?.right_ear?.min_cycle_days || 0 }} / {{ batteryStats?.right_ear?.max_cycle_days || 0 }} 天
+                  </el-descriptions-item>
+                </el-descriptions>
+              </div>
             </el-col>
           </el-row>
+
           <el-table :data="batteryRecords">
-            <el-table-column prop="change_date" label="更换日期" width="120" />
+            <el-table-column prop="change_date" label="更换日期" width="120">
+              <template #default="{ row }">
+                <span>{{ row.change_date }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="ear" label="耳朵" width="80">
               <template #default="{ row }">
                 <el-tag :type="row.ear === '左耳' ? 'primary' : 'purple'" size="small">{{ row.ear }}</el-tag>
@@ -156,9 +266,25 @@
             </el-table-column>
             <el-table-column prop="battery_type" label="电池型号" />
             <el-table-column prop="battery_brand" label="品牌" />
-            <el-table-column prop="usage_days" label="使用天数" width="100">
+            <el-table-column label="使用天数" width="140">
               <template #default="{ row }">
-                <span v-if="row.usage_days">{{ row.usage_days }} 天</span>
+                <span v-if="row.usage_days != null">
+                  <span
+                    :class="{
+                      'text-warning': isCycleAbnormal(row),
+                      'text-danger': row.usage_days < 3
+                    }"
+                  >
+                    {{ row.usage_days }} 天
+                  </span>
+                  <el-tooltip
+                    v-if="isCycleAbnormal(row)"
+                    :content="getAbnormalReason(row)"
+                    placement="top"
+                  >
+                    <el-icon class="warn-icon" color="#e6a23c"><WarningFilled /></el-icon>
+                  </el-tooltip>
+                </span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
@@ -170,10 +296,16 @@
 
     <el-dialog v-model="batteryDialogVisible" title="记录电池更换" width="500px">
       <el-form :model="batteryForm" label-width="100px">
-        <el-form-item label="更换日期">
-          <el-date-picker v-model="batteryForm.change_date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        <el-form-item label="更换日期" required>
+          <el-date-picker
+            v-model="batteryForm.change_date"
+            type="date"
+            value-format="YYYY-MM-DD"
+            :disabled-date="disabledDate"
+            style="width: 100%"
+          />
         </el-form-item>
-        <el-form-item label="耳朵">
+        <el-form-item label="耳朵" required>
           <el-radio-group v-model="batteryForm.ear">
             <el-radio value="左耳">左耳</el-radio>
             <el-radio value="右耳">右耳</el-radio>
@@ -201,8 +333,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { WarningFilled, Clock, Warning, Plus, Back } from '@element-plus/icons-vue'
 import { profileApi, feedbackApi, batteryApi, statisticsApi } from '@/api'
-import type { Profile, BatteryRecord, Suggestion } from '@/types'
+import type { Profile, BatteryRecord, Suggestion, BatteryStats, BatteryAbnormalCycle } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -212,7 +345,7 @@ const profile = ref<Profile>()
 const overview = ref<any>()
 const suggestions = ref<Suggestion[]>([])
 const batteryRecords = ref<BatteryRecord[]>([])
-const batteryStats = ref<any>()
+const batteryStats = ref<BatteryStats>()
 const batteryDialogVisible = ref(false)
 
 const batteryForm = ref({
@@ -232,6 +365,42 @@ const scenarios = computed(() => {
     return []
   }
 })
+
+const allAbnormalCycles = computed<BatteryAbnormalCycle[]>(() => {
+  if (!batteryStats.value) return []
+  return [
+    ...(batteryStats.value.left_ear?.abnormal_cycles || []),
+    ...(batteryStats.value.right_ear?.abnormal_cycles || [])
+  ]
+})
+
+const disabledDate = (time: Date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (time.getTime() > today.getTime()) return true
+  if (profile.value?.fitting_date) {
+    const fitting = new Date(profile.value.fitting_date)
+    fitting.setHours(0, 0, 0, 0)
+    if (time.getTime() < fitting.getTime()) return true
+  }
+  return false
+}
+
+const abnormalMap = computed(() => {
+  const map = new Map<number, string>()
+  allAbnormalCycles.value.forEach(ab => {
+    map.set(ab.id, ab.reason)
+  })
+  return map
+})
+
+const isCycleAbnormal = (row: BatteryRecord) => {
+  return row.id != null && abnormalMap.value.has(row.id)
+}
+
+const getAbnormalReason = (row: BatteryRecord) => {
+  return row.id != null ? abnormalMap.value.get(row.id) || '' : ''
+}
 
 const loadData = async () => {
   loading.value = true
@@ -268,16 +437,42 @@ const openBatteryDialog = () => {
   batteryDialogVisible.value = true
 }
 
+const extractErrorMessage = (err: any) => {
+  const resp = err?.response?.data
+  if (typeof resp === 'string') return resp
+  if (resp?.error) return resp.error
+  if (resp?.message) return resp.message
+  return '保存失败'
+}
+
 const submitBattery = async () => {
   try {
     await batteryApi.create(batteryForm.value as any)
     ElMessage.success('记录成功')
     batteryDialogVisible.value = false
     loadData()
-  } catch (e) {
-    ElMessage.error('保存失败')
+  } catch (e: any) {
+    ElMessage.error(extractErrorMessage(e))
   }
 }
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.text-danger {
+  color: #f56c6c;
+  font-weight: 600;
+}
+.text-warning {
+  color: #e6a23c;
+  font-weight: 600;
+}
+.warn-icon {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.ear-card {
+  border-radius: 8px;
+}
+</style>

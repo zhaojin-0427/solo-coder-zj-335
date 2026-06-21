@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Profile, Feedback, Adjustment, Followup, BatteryRecord } from '@/types'
+import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings } from '@/types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -63,7 +63,7 @@ export const batteryApi = {
   create: (data: BatteryRecord) => api.post<BatteryRecord>('/batteries', data),
   update: (id: number, data: BatteryRecord) => api.put<BatteryRecord>(`/batteries/${id}`, data),
   delete: (id: number) => api.delete(`/batteries/${id}`),
-  getStats: (profileId: number) => api.get(`/batteries/stats/${profileId}`)
+  getStats: (profileId: number) => api.get<BatteryStats>(`/batteries/stats/${profileId}`)
 }
 
 export const statisticsApi = {
@@ -75,7 +75,8 @@ export const statisticsApi = {
   getTrends: (profileId: number, days?: number) => {
     const params = days ? { days } : {}
     return api.get(`/statistics/trends/${profileId}`, { params })
-  }
+  },
+  getBatteryWarnings: () => api.get<BatteryWarnings>('/statistics/battery-warnings')
 }
 
 export default api

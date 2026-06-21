@@ -35,6 +35,243 @@
         </el-col>
       </el-row>
 
+      <el-row :gutter="20" style="margin-bottom: 20px">
+        <el-col :span="24">
+          <div class="card">
+            <div class="page-header" style="border: none; margin: 0; padding: 0; margin-bottom: 16px">
+              <h3 style="font-size: 16px; margin: 0">
+                <el-icon color="#f56c6c" style="margin-right: 8px"><BellFilled /></el-icon>
+                电池更换提醒汇总
+              </h3>
+              <div style="font-size: 13px; color: #909399">
+                全局预警数据 · 更新于 {{ batteryWarnings?.today || '-' }}
+              </div>
+            </div>
+
+            <el-row :gutter="16" style="margin-bottom: 16px">
+              <el-col :span="4">
+                <div class="mini-stat danger">
+                  <div class="mini-stat-value">{{ batteryWarnings?.summary?.overdue_count || 0 }}</div>
+                  <div class="mini-stat-label">已逾期</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat warning">
+                  <div class="mini-stat-value">{{ batteryWarnings?.summary?.soon_due_count || 0 }}</div>
+                  <div class="mini-stat-label">即将到期</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat abnormal">
+                  <div class="mini-stat-value">{{ batteryWarnings?.summary?.abnormal_count || 0 }}</div>
+                  <div class="mini-stat-label">周期异常</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat success">
+                  <div class="mini-stat-value">{{ batteryWarnings?.summary?.normal_count || 0 }}</div>
+                  <div class="mini-stat-label">状态正常</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat info">
+                  <div class="mini-stat-value">{{ batteryWarnings?.summary?.no_data_count || 0 }}</div>
+                  <div class="mini-stat-label">暂无数据</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat primary">
+                  <div class="mini-stat-value">{{ batteryWarnings?.summary?.total_profiles || 0 }}</div>
+                  <div class="mini-stat-label">档案总数</div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <el-tabs v-model="batteryTab" size="small">
+              <el-tab-pane label="已逾期" name="overdue">
+                <el-empty
+                  v-if="!batteryWarnings?.overdue?.length"
+                  description="暂无已逾期档案"
+                  :image-size="80"
+                />
+                <el-table
+                  v-else
+                  :data="batteryWarnings.overdue"
+                  size="small"
+                  stripe
+                  @row-click="goToProfile"
+                  style="cursor: pointer"
+                >
+                  <el-table-column label="老人姓名" width="120">
+                    <template #default="{ row }">
+                      <strong>{{ row.elderly_name }}</strong>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="左耳状态" width="180">
+                    <template #default="{ row }">
+                      <span v-if="row.left_ear.status === 'overdue'">
+                        <el-tag type="danger" effect="dark" size="small">
+                          逾期 {{ row.left_ear.overdue_days }} 天
+                        </el-tag>
+                      </span>
+                      <el-tag v-else size="small" :type="getEarTagType(row.left_ear.status)">
+                        {{ getEarStatusLabel(row.left_ear.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="左耳最近更换" width="130">
+                    <template #default="{ row }">{{ row.left_ear.last_change_date || '-' }}</template>
+                  </el-table-column>
+                  <el-table-column label="左耳预计更换" width="140">
+                    <template #default="{ row }">
+                      <span class="text-danger">{{ row.left_ear.next_expected_date || '-' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="右耳状态" width="180">
+                    <template #default="{ row }">
+                      <span v-if="row.right_ear.status === 'overdue'">
+                        <el-tag type="danger" effect="dark" size="small">
+                          逾期 {{ row.right_ear.overdue_days }} 天
+                        </el-tag>
+                      </span>
+                      <el-tag v-else size="small" :type="getEarTagType(row.right_ear.status)">
+                        {{ getEarStatusLabel(row.right_ear.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="右耳最近更换" width="130">
+                    <template #default="{ row }">{{ row.right_ear.last_change_date || '-' }}</template>
+                  </el-table-column>
+                  <el-table-column label="右耳预计更换" width="140">
+                    <template #default="{ row }">
+                      <span class="text-danger">{{ row.right_ear.next_expected_date || '-' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="联系人/门店">
+                    <template #default="{ row }">
+                      <span v-if="row.contact_person || row.contact_phone">
+                        {{ row.contact_person || '-' }} {{ row.contact_phone || '' }}
+                      </span>
+                      <span v-else-if="row.fitting_store">{{ row.fitting_store }}</span>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+
+              <el-tab-pane label="即将到期" name="soon_due">
+                <el-empty
+                  v-if="!batteryWarnings?.soon_due?.length"
+                  description="暂无即将到期档案"
+                  :image-size="80"
+                />
+                <el-table
+                  v-else
+                  :data="batteryWarnings.soon_due"
+                  size="small"
+                  stripe
+                  @row-click="goToProfile"
+                  style="cursor: pointer"
+                >
+                  <el-table-column label="老人姓名" width="120">
+                    <template #default="{ row }">
+                      <strong>{{ row.elderly_name }}</strong>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="左耳状态" width="180">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="getEarTagType(row.left_ear.status)">
+                        {{ getEarStatusLabel(row.left_ear.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="左耳最近更换" width="130">
+                    <template #default="{ row }">{{ row.left_ear.last_change_date || '-' }}</template>
+                  </el-table-column>
+                  <el-table-column label="左耳预计更换" width="140">
+                    <template #default="{ row }">
+                      <span class="text-warning">{{ row.left_ear.next_expected_date || '-' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="右耳状态" width="180">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="getEarTagType(row.right_ear.status)">
+                        {{ getEarStatusLabel(row.right_ear.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="右耳最近更换" width="130">
+                    <template #default="{ row }">{{ row.right_ear.last_change_date || '-' }}</template>
+                  </el-table-column>
+                  <el-table-column label="右耳预计更换" width="140">
+                    <template #default="{ row }">
+                      <span class="text-warning">{{ row.right_ear.next_expected_date || '-' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="联系人/门店">
+                    <template #default="{ row }">
+                      <span v-if="row.contact_person || row.contact_phone">
+                        {{ row.contact_person || '-' }} {{ row.contact_phone || '' }}
+                      </span>
+                      <span v-else-if="row.fitting_store">{{ row.fitting_store }}</span>
+                      <span v-else style="color: #909399">-</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+
+              <el-tab-pane label="周期异常" name="abnormal">
+                <el-empty
+                  v-if="!batteryWarnings?.abnormal?.length"
+                  description="暂无周期异常档案"
+                  :image-size="80"
+                />
+                <div v-for="profile in batteryWarnings?.abnormal" :key="profile.profile_id" class="abnormal-card">
+                  <div class="abnormal-header" @click="goToProfile(profile)">
+                    <strong style="font-size: 15px">{{ profile.elderly_name }}</strong>
+                    <el-tag type="warning" size="small" style="margin-left: 12px">
+                      {{ profile.abnormal_cycles.length }} 条异常
+                    </el-tag>
+                    <el-tag
+                      v-if="profile.left_ear.status !== 'normal' && profile.left_ear.status !== 'no_data'"
+                      size="small"
+                      :type="getEarTagType(profile.left_ear.status)"
+                      style="margin-left: 8px"
+                    >
+                      左耳：{{ getEarStatusLabel(profile.left_ear.status) }}
+                    </el-tag>
+                    <el-tag
+                      v-if="profile.right_ear.status !== 'normal' && profile.right_ear.status !== 'no_data'"
+                      size="small"
+                      :type="getEarTagType(profile.right_ear.status)"
+                      style="margin-left: 8px"
+                    >
+                      右耳：{{ getEarStatusLabel(profile.right_ear.status) }}
+                    </el-tag>
+                  </div>
+                  <el-table :data="profile.abnormal_cycles" size="small" style="margin-top: 8px">
+                    <el-table-column prop="change_date" label="更换日期" width="140" />
+                    <el-table-column label="耳朵" width="100">
+                      <template #default="{ row }">
+                        <el-tag :type="getAbnormalEar(profile, row.id)" size="small">
+                          {{ getAbnormalEar(profile, row.id) }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="usage_days" label="使用天数" width="100">
+                      <template #default="{ row }">
+                        <span class="text-warning">{{ row.usage_days }} 天</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="reason" label="异常原因" />
+                  </el-table>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+        </el-col>
+      </el-row>
+
       <el-row :gutter="20">
         <el-col :span="12">
           <div class="card">
@@ -182,8 +419,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import {
+  Warning,
+  Bottom,
+  Clock,
+  TrendCharts,
+  DataLine,
+  WarningFilled,
+  BellFilled
+} from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -196,7 +443,7 @@ import {
   DatasetComponent
 } from 'echarts/components'
 import { profileApi, statisticsApi } from '@/api'
-import type { Profile } from '@/types'
+import type { Profile, BatteryWarnings, BatteryWarningProfile } from '@/types'
 
 use([
   CanvasRenderer,
@@ -210,10 +457,12 @@ use([
   DatasetComponent
 ])
 
+const router = useRouter()
 const loading = ref(false)
 const profiles = ref<Profile[]>([])
 const selectedProfileId = ref<number>()
 const trendDays = ref(90)
+const batteryTab = ref('overdue')
 
 const overview = ref<any>()
 const discomfortScenarios = ref<any[]>([])
@@ -221,6 +470,7 @@ const earDifference = ref<any>()
 const batteryCycle = ref<any>()
 const improvementRate = ref<any>()
 const trends = ref<any[]>([])
+const batteryWarnings = ref<BatteryWarnings>()
 
 const improvementSummary = computed(() => improvementRate.value?.summary || {})
 const batteryLeftStats = computed(() => batteryCycle.value?.left_ear?.stats || {})
@@ -323,12 +573,12 @@ const earDiffChartOption = computed(() => {
 const batteryChartOption = computed(() => {
   const leftRecords = batteryCycle.value?.left_ear?.records || []
   const rightRecords = batteryCycle.value?.right_ear?.records || []
-  
+
   const allDates = Array.from(new Set([
     ...leftRecords.map((r: any) => r.date),
     ...rightRecords.map((r: any) => r.date)
   ])).sort()
-  
+
   const leftData = allDates.map(date => {
     const r = leftRecords.find((rec: any) => rec.date === date)
     return r ? r.usage_days : null
@@ -337,7 +587,7 @@ const batteryChartOption = computed(() => {
     const r = rightRecords.find((rec: any) => rec.date === date)
     return r ? r.usage_days : null
   })
-  
+
   return {
     tooltip: {
       trigger: 'axis'
@@ -498,6 +748,30 @@ const getTrendLabel = (trend?: string) => {
   return '稳定'
 }
 
+const getEarTagType = (status: string) => {
+  if (status === 'overdue') return 'danger'
+  if (status === 'soon_due') return 'warning'
+  if (status === 'normal') return 'success'
+  return 'info'
+}
+
+const getEarStatusLabel = (status: string) => {
+  if (status === 'overdue') return '已逾期'
+  if (status === 'soon_due') return '即将到期'
+  if (status === 'normal') return '正常'
+  return '暂无数据'
+}
+
+const getAbnormalEar = (profile: BatteryWarningProfile, recordId: number) => {
+  if (profile.left_ear.abnormal_cycles.some(a => a.id === recordId)) return '左耳'
+  if (profile.right_ear.abnormal_cycles.some(a => a.id === recordId)) return '右耳'
+  return ''
+}
+
+const goToProfile = (row: BatteryWarningProfile) => {
+  router.push(`/profile/${row.profile_id}`)
+}
+
 const loadProfiles = async () => {
   try {
     const res = await profileApi.getAll()
@@ -508,6 +782,15 @@ const loadProfiles = async () => {
     }
   } catch (e) {
     ElMessage.error('加载老人列表失败')
+  }
+}
+
+const loadBatteryWarnings = async () => {
+  try {
+    const res = await statisticsApi.getBatteryWarnings()
+    batteryWarnings.value = res.data
+  } catch (e) {
+    // non-critical, fail silently
   }
 }
 
@@ -545,5 +828,53 @@ const loadTrends = async () => {
   }
 }
 
-onMounted(loadProfiles)
+onMounted(() => {
+  loadProfiles()
+  loadBatteryWarnings()
+})
 </script>
+
+<style scoped>
+.text-danger {
+  color: #f56c6c;
+  font-weight: 600;
+}
+.text-warning {
+  color: #e6a23c;
+  font-weight: 600;
+}
+.mini-stat {
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  color: #fff;
+}
+.mini-stat.danger { background: linear-gradient(135deg, #f56c6c, #f78989); }
+.mini-stat.warning { background: linear-gradient(135deg, #e6a23c, #f0c78a); }
+.mini-stat.abnormal { background: linear-gradient(135deg, #f7ba2a, #fad87a); }
+.mini-stat.success { background: linear-gradient(135deg, #67c23a, #95d475); }
+.mini-stat.info { background: linear-gradient(135deg, #909399, #b1b3b8); }
+.mini-stat.primary { background: linear-gradient(135deg, #409eff, #79bbff); }
+.mini-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.mini-stat-label {
+  font-size: 13px;
+  margin-top: 4px;
+  opacity: 0.95;
+}
+.abnormal-card {
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+  border-radius: 6px;
+}
+.abnormal-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+</style>

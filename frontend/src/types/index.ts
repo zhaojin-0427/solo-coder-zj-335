@@ -137,3 +137,69 @@ export const IMPROVEMENT_OPTIONS = [
   { value: '略有下降', label: '略有下降' },
   { value: '明显下降', label: '明显下降' }
 ]
+
+export interface BatteryAbnormalCycle {
+  id: number
+  change_date: string
+  usage_days: number
+  reason: string
+}
+
+export interface BatteryEarMetrics {
+  count: number
+  last_change_date: string | null
+  avg_cycle_days: number
+  min_cycle_days: number
+  max_cycle_days: number
+  next_expected_date: string | null
+  overdue_days: number
+  status: 'normal' | 'soon_due' | 'overdue' | 'no_data'
+  abnormal_cycles: BatteryAbnormalCycle[]
+}
+
+export interface BatteryStats {
+  profile_id: number
+  today: string
+  warn_days_before: number
+  status: 'normal' | 'soon_due' | 'overdue' | 'abnormal' | 'no_data'
+  left_ear: BatteryEarMetrics
+  right_ear: BatteryEarMetrics
+  recent_records: BatteryRecord[]
+}
+
+export interface BatteryEarSummary {
+  status: 'normal' | 'soon_due' | 'overdue' | 'no_data'
+  last_change_date: string | null
+  next_expected_date: string | null
+  overdue_days: number
+  avg_cycle_days: number
+  abnormal_cycles: BatteryAbnormalCycle[]
+}
+
+export interface BatteryWarningProfile {
+  profile_id: number
+  elderly_name: string
+  contact_person?: string
+  contact_phone?: string
+  fitting_store?: string
+  status: 'normal' | 'soon_due' | 'overdue' | 'abnormal' | 'no_data'
+  left_ear: BatteryEarSummary
+  right_ear: BatteryEarSummary
+  abnormal_cycles: BatteryAbnormalCycle[]
+}
+
+export interface BatteryWarnings {
+  today: string
+  warn_days_before: number
+  summary: {
+    total_profiles: number
+    overdue_count: number
+    soon_due_count: number
+    abnormal_count: number
+    normal_count: number
+    no_data_count: number
+  }
+  overdue: BatteryWarningProfile[]
+  soon_due: BatteryWarningProfile[]
+  abnormal: BatteryWarningProfile[]
+}

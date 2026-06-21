@@ -306,3 +306,172 @@ def get_trends(profile_id):
         })
     
     return jsonify(result)
+
+
+WARN_DAYS_BEFORE = 3
+ABNORMAL_LOW_DAYS = 3
+ABNORMAL_HIGH_RATIO = 2.0
+
+
+def _calc_ear_metrics(records_asc, today):
+    if not records_asc:
+        return {
+            'count': 0,
+            'last_change_date': None,
+            'avg_cycle_days': 0,
+            'min_cycle_days': 0,
+            'max_cycle_days': 0,
+            'next_expected_date': None,
+            'overdue_days': 0,
+            'status': 'no_data',
+            'abnormal_cycles': []
+        }
+
+    usage_records = [r for r in records_asc if r.usage_days is not None]
+    count = len(records_asc)
+    last_record = records_asc[-1]
+    last_change_date = last_record.change_date
+
+    if usage_records:
+        days_list = [r.usage_days for r in usage_records]
+        avg_cycle = round(sum(days_list) / len(days_list), 1)
+        min_cycle = min(days_list)
+        max_cycle = max(days_list)
+    else:
+        avg_cycle = 0
+        min_cycle = 0
+        max_cycle = 0
+
+    next_expected_date = None
+    overdue_days = 0
+    status = 'no_data'
+    if avg_cycle > 0:
+        next_expected_date = last_change_date + timedelta(days=int(round(avg_cycle)))
+        delta = (today - next_expected_date).days
+        overdue_days = max(0, delta)
+        if overdue_days > 0:
+            status = 'overdue'
+        elif (next_expected_date - today).days <= WARN_DAYS_BEFORE:
+            status = 'soon_due'
+        else:
+            status = 'normal'
+
+    abnormal_cycles = []
+    if usage_records and avg_cycle > 0:
+        for r in usage_records:
+            is_abnormal = False
+            reason = None
+            if r.usage_days < ABNORMAL_LOW_DAYS:
+                is_abnormal = True
+                reason = f'使用天数过短（{r.usage_days}天）'
+            elif r.usage_days > avg_cycle * ABNORMAL_HIGH_RATIO:
+                is_abnormal = True
+                reason = f'使用天数过长（{r.usage_days}天，均值{avg_cycle}天）'
+            if is_abnormal:
+                abnormal_cycles.append({
+                    'id': r.id,
+                    'change_date': r.change_date.isoformat(),
+                    'usage_days': r.usage_days,
+                    'reason': reason
+                })
+
+    return {
+        'count': count,
+        'last_change_date': last_change_date.isoformat(),
+        'avg_cycle_days': avg_cycle,
+        'min_cycle_days': min_cycle,
+        'max_cycle_days': max_cycle,
+        'next_expected_date': next_expected_date.isoformat() if next_expected_date else None,
+        'overdue_days': overdue_days,
+        'status': status,
+        'abnormal_cycles': abnormal_cycles
+    }
+
+
+@bp.route('/battery-warnings', methods=['GET'])
+def get_battery_warnings():
+    today = datetime.now().date()
+    profiles = Profile.query.all()
+
+    overdue_list = []
+    soon_due_list = []
+    abnormal_list = []
+    normal_count = 0
+    no_data_count = 0
+
+    for profile in profiles:
+        records = BatteryRecord.query.filter_by(
+            profile_id=profile.id
+        ).order_by(BatteryRecord.change_date.asc()).all()
+
+        left_records = [r for r in records if r.ear == '左耳']
+        right_records = [r for r in records if r.ear == '右耳']
+
+        left_metrics = _calc_ear_metrics(left_records, today)
+        right_metrics = _calc_ear_metrics(right_records, today)
+
+        all_abnormal = left_metrics['abnormal_cycles'] + right_metrics['abnormal_cycles']
+        global_status = 'normal'
+        if left_metrics['status'] == 'overdue' or right_metrics['status'] == 'overdue':
+            global_status = 'overdue'
+        elif left_metrics['status'] == 'soon_due' or right_metrics['status'] == 'soon_due':
+            global_status = 'soon_due'
+        elif all_abnormal:
+            global_status = 'abnormal'
+        elif left_metrics['status'] == 'no_data' and right_metrics['status'] == 'no_data':
+            global_status = 'no_data'
+
+        profile_summary = {
+            'profile_id': profile.id,
+            'elderly_name': profile.elderly_name,
+            'contact_person': profile.contact_person,
+            'contact_phone': profile.contact_phone,
+            'fitting_store': profile.fitting_store,
+            'status': global_status,
+            'left_ear': {
+                'status': left_metrics['status'],
+                'last_change_date': left_metrics['last_change_date'],
+                'next_expected_date': left_metrics['next_expected_date'],
+                'overdue_days': left_metrics['overdue_days'],
+                'avg_cycle_days': left_metrics['avg_cycle_days'],
+                'abnormal_cycles': left_metrics['abnormal_cycles']
+            },
+            'right_ear': {
+                'status': right_metrics['status'],
+                'last_change_date': right_metrics['last_change_date'],
+                'next_expected_date': right_metrics['next_expected_date'],
+                'overdue_days': right_metrics['overdue_days'],
+                'avg_cycle_days': right_metrics['avg_cycle_days'],
+                'abnormal_cycles': right_metrics['abnormal_cycles']
+            },
+            'abnormal_cycles': all_abnormal
+        }
+
+        if global_status == 'overdue':
+            overdue_list.append(profile_summary)
+        elif global_status == 'soon_due':
+            soon_due_list.append(profile_summary)
+        elif global_status == 'abnormal':
+            abnormal_list.append(profile_summary)
+        elif global_status == 'normal':
+            normal_count += 1
+        else:
+            no_data_count += 1
+
+    overdue_list.sort(key=lambda p: max(p['left_ear']['overdue_days'], p['right_ear']['overdue_days']), reverse=True)
+
+    return jsonify({
+        'today': today.isoformat(),
+        'warn_days_before': WARN_DAYS_BEFORE,
+        'summary': {
+            'total_profiles': len(profiles),
+            'overdue_count': len(overdue_list),
+            'soon_due_count': len(soon_due_list),
+            'abnormal_count': len(abnormal_list),
+            'normal_count': normal_count,
+            'no_data_count': no_data_count
+        },
+        'overdue': overdue_list,
+        'soon_due': soon_due_list,
+        'abnormal': abnormal_list
+    })
