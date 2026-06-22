@@ -402,3 +402,150 @@ export interface ServiceTicketMeta {
   statuses: string[]
   status_labels: Record<string, string>
 }
+
+export interface TrainingPlan {
+  id?: number
+  profile_id: number
+  elderly_name?: string
+  goal: string
+  cycle_days: number
+  daily_wear_minutes: number
+  training_scenario: string
+  volume_level?: string
+  reminder_frequency?: string
+  responsible_person?: string
+  notes?: string
+  status?: 'active' | 'paused' | 'completed' | 'cancelled'
+  start_date: string
+  end_date?: string
+  completed_days?: number
+  completion_rate?: number
+  streak_days?: number
+  recent_7_days?: TrainingDayStatus[]
+  abnormal_alerts?: TrainingAbnormalAlert[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface TrainingDayStatus {
+  date: string
+  completed: boolean
+  actual_wear_minutes?: number | null
+  clarity_level?: string | null
+  fatigue_level?: string | null
+  has_discomfort?: boolean | null
+}
+
+export interface TrainingAbnormalAlert {
+  date: string
+  issues: string[]
+}
+
+export interface TrainingRecord {
+  id?: number
+  plan_id: number
+  profile_id: number
+  elderly_name?: string
+  training_scenario?: string
+  record_date: string
+  actual_wear_minutes?: number
+  clarity_level?: string
+  fatigue_level?: string
+  has_discomfort?: boolean
+  discomfort_detail?: string
+  howling?: string
+  howling_detail?: string
+  related_feedback_id?: number
+  related_adjustment_id?: number
+  related_followup_id?: number
+  notes?: string
+  created_at?: string
+}
+
+export interface TrainingMeta {
+  training_scenarios: string[]
+  plan_statuses: string[]
+  volume_levels: string[]
+  reminder_frequencies: string[]
+  fatigue_levels: string[]
+  clarity_levels: string[]
+  status_labels: Record<string, string>
+}
+
+export interface TrainingOverview {
+  total_plans: number
+  active_plans: number
+  completed_plans: number
+  total_records: number
+  avg_daily_wear_minutes: number
+  overall_completion_rate: number
+}
+
+export interface TrainingProfileStats {
+  total_plans: number
+  active_plans: number
+  completed_plans: number
+  completion_rate: number
+  avg_daily_wear_minutes: number
+  streak_days: number
+  clarity_change: number
+  clarity_trend: { date: string; score: number; level: string }[]
+  high_discomfort_scenarios: {
+    scenario: string
+    total_records: number
+    discomfort_count: number
+    howling_count: number
+    fatigue_count: number
+    issue_total: number
+  }[]
+}
+
+export const TRAINING_SCENARIOS = [
+  { value: '居家安静', label: '居家安静', icon: '🏠' },
+  { value: '一对一对话', label: '一对一对话', icon: '🗣️' },
+  { value: '家庭聚餐', label: '家庭聚餐', icon: '👨‍👩‍👧‍👦' },
+  { value: '菜市场', label: '菜市场', icon: '🛒' },
+  { value: '户外散步', label: '户外散步', icon: '🚶' },
+  { value: '看电视', label: '看电视', icon: '📺' },
+  { value: '打电话', label: '打电话', icon: '📞' },
+  { value: '会议室', label: '会议室', icon: '💼' },
+  { value: '其他', label: '其他', icon: '📝' }
+]
+
+export const VOLUME_LEVELS = [
+  { value: '低', label: '低' },
+  { value: '中低', label: '中低' },
+  { value: '中', label: '中' },
+  { value: '中高', label: '中高' },
+  { value: '高', label: '高' }
+]
+
+export const REMINDER_FREQUENCIES = [
+  { value: '每天', label: '每天' },
+  { value: '每2天', label: '每2天' },
+  { value: '每3天', label: '每3天' },
+  { value: '每周', label: '每周' }
+]
+
+export const TRAINING_PLAN_STATUSES = [
+  { value: 'active', label: '进行中', color: '#409eff' },
+  { value: 'paused', label: '已暂停', color: '#e6a23c' },
+  { value: 'completed', label: '已完成', color: '#67c23a' },
+  { value: 'cancelled', label: '已取消', color: '#909399' }
+]
+
+export const FATIGUE_LEVELS = [
+  { value: '无', label: '无' },
+  { value: '轻微', label: '轻微' },
+  { value: '一般', label: '一般' },
+  { value: '明显', label: '明显' },
+  { value: '严重', label: '严重' }
+]
+
+export const CLARITY_LEVELS = [
+  { value: '完全听不清', label: '完全听不清' },
+  { value: '勉强听清', label: '勉强听清' },
+  { value: '部分听清', label: '部分听清' },
+  { value: '大部分听清', label: '大部分听清' },
+  { value: '完全听清', label: '完全听清' }
+]

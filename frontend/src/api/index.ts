@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings, Task, TaskMeta, TaskOverview, TaskSummary, Consumable, ServiceTicket, ConsumableMeta, ServiceTicketMeta } from '@/types'
+import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings, Task, TaskMeta, TaskOverview, TaskSummary, Consumable, ServiceTicket, ConsumableMeta, ServiceTicketMeta, TrainingPlan, TrainingRecord, TrainingMeta, TrainingOverview, TrainingProfileStats } from '@/types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -78,7 +78,9 @@ export const statisticsApi = {
   },
   getBatteryWarnings: () => api.get<BatteryWarnings>('/statistics/battery-warnings'),
   getTaskOverview: () => api.get<TaskOverview>('/statistics/task-overview'),
-  getTaskSummary: (profileId: number) => api.get<TaskSummary>(`/statistics/task-summary/${profileId}`)
+  getTaskSummary: (profileId: number) => api.get<TaskSummary>(`/statistics/task-summary/${profileId}`),
+  getTrainingOverview: () => api.get<TrainingOverview>('/statistics/training-overview'),
+  getTrainingProfileStats: (profileId: number) => api.get<TrainingProfileStats>(`/statistics/training-profile/${profileId}`)
 }
 
 export const taskApi = {
@@ -129,6 +131,33 @@ export const serviceTicketApi = {
   update: (id: number, data: Partial<ServiceTicket>) => api.put<ServiceTicket>(`/service-tickets/${id}`, data),
   delete: (id: number) => api.delete(`/service-tickets/${id}`),
   getMeta: () => api.get<ServiceTicketMeta>('/service-tickets/meta')
+}
+
+export const trainingApi = {
+  getMeta: () => api.get<TrainingMeta>('/training/meta'),
+  getPlans: (profileId?: number, status?: string, scenario?: string, hasDiscomfort?: boolean) => {
+    const params: Record<string, any> = {}
+    if (profileId) params.profile_id = profileId
+    if (status) params.status = status
+    if (scenario) params.scenario = scenario
+    if (hasDiscomfort !== undefined) params.has_discomfort = hasDiscomfort
+    return api.get<TrainingPlan[]>('/training/plans', { params })
+  },
+  getPlan: (id: number) => api.get<TrainingPlan>(`/training/plans/${id}`),
+  createPlan: (data: TrainingPlan) => api.post<TrainingPlan>('/training/plans', data),
+  updatePlan: (id: number, data: Partial<TrainingPlan>) => api.put<TrainingPlan>(`/training/plans/${id}`, data),
+  deletePlan: (id: number) => api.delete(`/training/plans/${id}`),
+  getRecords: (planId?: number, profileId?: number, hasDiscomfort?: boolean) => {
+    const params: Record<string, any> = {}
+    if (planId) params.plan_id = planId
+    if (profileId) params.profile_id = profileId
+    if (hasDiscomfort !== undefined) params.has_discomfort = hasDiscomfort
+    return api.get<TrainingRecord[]>('/training/records', { params })
+  },
+  getRecord: (id: number) => api.get<TrainingRecord>(`/training/records/${id}`),
+  createRecord: (data: TrainingRecord) => api.post<TrainingRecord>('/training/records', data),
+  updateRecord: (id: number, data: Partial<TrainingRecord>) => api.put<TrainingRecord>(`/training/records/${id}`, data),
+  deleteRecord: (id: number) => api.delete(`/training/records/${id}`)
 }
 
 export default api

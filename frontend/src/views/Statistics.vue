@@ -387,6 +387,138 @@
         </el-col>
       </el-row>
 
+      <el-row :gutter="20" style="margin-bottom: 20px">
+        <el-col :span="24">
+          <div class="card">
+            <div class="page-header" style="border: none; margin: 0; padding: 0; margin-bottom: 16px">
+              <h3 style="font-size: 16px; margin: 0">
+                <el-icon color="#67c23a" style="margin-right: 8px"><Headset /></el-icon>
+                适应训练统计
+              </h3>
+              <el-button type="primary" size="small" @click="router.push('/training')">
+                <el-icon><ArrowRight /></el-icon>
+                前往训练管理
+              </el-button>
+            </div>
+
+            <el-row :gutter="16" style="margin-bottom: 16px">
+              <el-col :span="4">
+                <div class="mini-stat primary">
+                  <div class="mini-stat-value">{{ trainingOverview?.total_plans || 0 }}</div>
+                  <div class="mini-stat-label">训练计划总数</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat success">
+                  <div class="mini-stat-value">{{ trainingOverview?.overall_completion_rate || 0 }}%</div>
+                  <div class="mini-stat-label">整体完成率</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat info">
+                  <div class="mini-stat-value">{{ trainingOverview?.avg_daily_wear_minutes || 0 }}</div>
+                  <div class="mini-stat-label">平均日佩戴(分钟)</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat warning">
+                  <div class="mini-stat-value">{{ trainingOverview?.active_plans || 0 }}</div>
+                  <div class="mini-stat-label">进行中</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat abnormal">
+                  <div class="mini-stat-value">{{ trainingOverview?.completed_plans || 0 }}</div>
+                  <div class="mini-stat-label">已完成</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="mini-stat danger">
+                  <div class="mini-stat-value">{{ trainingOverview?.total_records || 0 }}</div>
+                  <div class="mini-stat-label">训练记录总数</div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="20" v-if="selectedProfileId && trainingProfileStats">
+              <el-col :span="6">
+                <div class="stat-card">
+                  <div class="stat-value" style="color: #67c23a">{{ trainingProfileStats.completion_rate || 0 }}%</div>
+                  <div class="stat-label">训练完成率</div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="stat-card">
+                  <div class="stat-value" style="color: #409eff">{{ trainingProfileStats.avg_daily_wear_minutes || 0 }}</div>
+                  <div class="stat-label">平均日佩戴(分钟)</div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="stat-card">
+                  <div class="stat-value" style="color: #e6a23c">{{ trainingProfileStats.streak_days || 0 }}</div>
+                  <div class="stat-label">连续打卡天数</div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="stat-card">
+                  <div class="stat-value" :style="{ color: (trainingProfileStats.clarity_change || 0) >= 0 ? '#67c23a' : '#f56c6c' }">
+                    {{ (trainingProfileStats.clarity_change || 0) >= 0 ? '+' : '' }}{{ trainingProfileStats.clarity_change || 0 }}
+                  </div>
+                  <div class="stat-label">听清评分变化</div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="20" style="margin-top: 16px" v-if="selectedProfileId">
+              <el-col :span="12">
+                <div class="card" style="margin: 0">
+                  <h4 style="margin-bottom: 12px; font-size: 14px; color: #606266">训练后听清评分变化</h4>
+                  <v-chart style="width: 100%; height: 280px" :option="trainingClarityChartOption" autoresize />
+                </div>
+              </el-col>
+              <el-col :span="12">
+                <div class="card" style="margin: 0">
+                  <h4 style="margin-bottom: 12px; font-size: 14px; color: #606266">高频不适训练场景汇总</h4>
+                  <v-chart style="width: 100%; height: 280px" :option="trainingDiscomfortChartOption" autoresize />
+                  <el-table
+                    v-if="trainingProfileStats && trainingProfileStats.high_discomfort_scenarios.length > 0"
+                    :data="trainingProfileStats.high_discomfort_scenarios"
+                    size="small"
+                    stripe
+                    style="margin-top: 12px"
+                  >
+                    <el-table-column prop="scenario" label="场景" width="100">
+                      <template #default="{ row }">
+                        <el-tag size="small">{{ row.scenario }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="total_records" label="记录数" width="80" align="center" />
+                    <el-table-column prop="discomfort_count" label="不适" width="70" align="center">
+                      <template #default="{ row }">
+                        <el-tag v-if="row.discomfort_count > 0" type="danger" size="small">{{ row.discomfort_count }}</el-tag>
+                        <span v-else style="color: #909399">-</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="howling_count" label="啸叫" width="70" align="center">
+                      <template #default="{ row }">
+                        <el-tag v-if="row.howling_count > 0" type="warning" size="small">{{ row.howling_count }}</el-tag>
+                        <span v-else style="color: #909399">-</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="fatigue_count" label="疲劳" width="70" align="center">
+                      <template #default="{ row }">
+                        <el-tag v-if="row.fatigue_count > 0" type="warning" size="small">{{ row.fatigue_count }}</el-tag>
+                        <span v-else style="color: #909399">-</span>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+        </el-col>
+      </el-row>
+
       <el-row :gutter="20">
         <el-col :span="12">
           <div class="card">
@@ -545,7 +677,8 @@ import {
   DataLine,
   WarningFilled,
   BellFilled,
-  ArrowRight
+  ArrowRight,
+  Headset
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -559,7 +692,7 @@ import {
   DatasetComponent
 } from 'echarts/components'
 import { profileApi, statisticsApi } from '@/api'
-import type { Profile, BatteryWarnings, BatteryWarningProfile, TaskOverview } from '@/types'
+import type { Profile, BatteryWarnings, BatteryWarningProfile, TaskOverview, TrainingOverview, TrainingProfileStats } from '@/types'
 
 use([
   CanvasRenderer,
@@ -588,6 +721,8 @@ const improvementRate = ref<any>()
 const trends = ref<any[]>([])
 const batteryWarnings = ref<BatteryWarnings>()
 const taskOverview = ref<TaskOverview>()
+const trainingOverview = ref<TrainingOverview>()
+const trainingProfileStats = ref<TrainingProfileStats>()
 
 const improvementSummary = computed(() => improvementRate.value?.summary || {})
 const batteryLeftStats = computed(() => batteryCycle.value?.left_ear?.stats || {})
@@ -1030,6 +1165,108 @@ const goToTaskCenter = () => {
   router.push('/tasks')
 }
 
+const loadTrainingOverview = async () => {
+  try {
+    const res = await statisticsApi.getTrainingOverview()
+    trainingOverview.value = res.data
+  } catch (e) {
+    // non-critical
+  }
+}
+
+const loadTrainingProfileStats = async () => {
+  if (!selectedProfileId.value) return
+  try {
+    const res = await statisticsApi.getTrainingProfileStats(selectedProfileId.value)
+    trainingProfileStats.value = res.data
+  } catch (e) {
+    // non-critical
+  }
+}
+
+const trainingClarityChartOption = computed(() => {
+  const data = trainingProfileStats.value?.clarity_trend || []
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['听清评分'] },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: data.map((d: any) => d.date.substring(5))
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 5,
+      minInterval: 1
+    },
+    series: [
+      {
+        name: '听清评分',
+        type: 'line',
+        data: data.map((d: any) => d.score),
+        smooth: true,
+        itemStyle: { color: '#67c23a' },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(103, 194, 58, 0.4)' },
+              { offset: 1, color: 'rgba(103, 194, 58, 0.05)' }
+            ]
+          }
+        }
+      }
+    ]
+  }
+})
+
+const trainingDiscomfortChartOption = computed(() => {
+  const data = trainingProfileStats.value?.high_discomfort_scenarios || []
+  if (data.length === 0) return { title: { text: '暂无不适数据', left: 'center', top: 'center', textStyle: { color: '#909399', fontSize: 14 } } }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
+    },
+    legend: { data: ['不适', '啸叫', '疲劳'] },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: data.map((d: any) => d.scenario)
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1
+    },
+    series: [
+      {
+        name: '不适',
+        type: 'bar',
+        stack: 'total',
+        data: data.map((d: any) => d.discomfort_count),
+        itemStyle: { color: '#f56c6c' }
+      },
+      {
+        name: '啸叫',
+        type: 'bar',
+        stack: 'total',
+        data: data.map((d: any) => d.howling_count),
+        itemStyle: { color: '#e6a23c' }
+      },
+      {
+        name: '疲劳',
+        type: 'bar',
+        stack: 'total',
+        data: data.map((d: any) => d.fatigue_count),
+        itemStyle: { color: '#f7ba2a' }
+      }
+    ]
+  }
+})
+
 const loadAllData = async () => {
   if (!selectedProfileId.value) return
   loading.value = true
@@ -1047,6 +1284,7 @@ const loadAllData = async () => {
     batteryCycle.value = b.data
     improvementRate.value = i.data
     loadTrends()
+    loadTrainingProfileStats()
   } catch (e) {
     ElMessage.error('加载统计数据失败')
   } finally {
@@ -1068,6 +1306,7 @@ onMounted(() => {
   loadProfiles()
   loadBatteryWarnings()
   loadTaskOverview()
+  loadTrainingOverview()
 })
 </script>
 

@@ -332,6 +332,145 @@ class Consumable(db.Model):
         }
 
 
+TRAINING_SCENARIOS = ['居家安静', '一对一对话', '家庭聚餐', '菜市场', '户外散步', '看电视', '打电话', '会议室', '其他']
+TRAINING_PLAN_STATUSES = ['active', 'paused', 'completed', 'cancelled']
+VOLUME_LEVELS = ['低', '中低', '中', '中高', '高']
+REMINDER_FREQUENCIES = ['每天', '每2天', '每周', '每3天']
+FATIGUE_LEVELS = ['无', '轻微', '一般', '明显', '严重']
+CLARITY_LEVELS = ['完全听不清', '勉强听清', '部分听清', '大部分听清', '完全听清']
+
+
+class TrainingPlan(db.Model):
+    __tablename__ = 'training_plans'
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
+    goal = db.Column(db.String(200), nullable=False)
+    cycle_days = db.Column(db.Integer, nullable=False)
+    daily_wear_minutes = db.Column(db.Integer, nullable=False)
+    training_scenario = db.Column(db.String(50), nullable=False)
+    volume_level = db.Column(db.String(20), default='中')
+    reminder_frequency = db.Column(db.String(20), default='每天')
+    responsible_person = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+    status = db.Column(db.String(20), default='active')
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        profile = Profile.query.get(self.profile_id)
+        today = datetime.utcnow().date()
+        records = TrainingRecord.query.filter_by(plan_id=self.id).order_by(TrainingRecord.record_date.desc()).all()
+
+        completed_days = len(records)
+        total_days = self.cycle_days
+        completion_rate = round((completed_days / total_days) * 100, 1) if total_days > 0 else 0
+
+        streak = 0
+        if records:
+            check_date = today
+            date_set = {r.record_date for r in records}
+            while check_date in date_set:
+                streak += 1
+                check_date -= timedelta(days=1)
+
+        recent_7 = []
+        for i in range(7):
+            d = today - timedelta(days=6 - i)
+            rec = next((r for r in records if r.record_date == d), None)
+            recent_7.append({
+                'date': d.isoformat(),
+                'completed': rec is not None,
+                'actual_wear_minutes': rec.actual_wear_minutes if rec else None,
+                'clarity_level': rec.clarity_level if rec else None,
+                'fatigue_level': rec.fatigue_level if rec else None,
+                'has_discomfort': rec.has_discomfort if rec else None
+            })
+
+        abnormal_alerts = []
+        for r in records[:7]:
+            if r.has_discomfort or r.howling or (r.fatigue_level and r.fatigue_level in ['明显', '严重']):
+                alert = {'date': r.record_date.isoformat(), 'issues': []}
+                if r.has_discomfort:
+                    alert['issues'].append('不适')
+                if r.howling:
+                    alert['issues'].append(f'啸叫({r.howling})')
+                if r.fatigue_level in ['明显', '严重']:
+                    alert['issues'].append(f'疲劳({r.fatigue_level})')
+                abnormal_alerts.append(alert)
+
+        return {
+            'id': self.id,
+            'profile_id': self.profile_id,
+            'elderly_name': profile.elderly_name if profile else None,
+            'goal': self.goal,
+            'cycle_days': self.cycle_days,
+            'daily_wear_minutes': self.daily_wear_minutes,
+            'training_scenario': self.training_scenario,
+            'volume_level': self.volume_level,
+            'reminder_frequency': self.reminder_frequency,
+            'responsible_person': self.responsible_person,
+            'notes': self.notes,
+            'status': self.status,
+            'start_date': self.start_date.isoformat(),
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'completed_days': completed_days,
+            'completion_rate': completion_rate,
+            'streak_days': streak,
+            'recent_7_days': recent_7,
+            'abnormal_alerts': abnormal_alerts,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+
+class TrainingRecord(db.Model):
+    __tablename__ = 'training_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('training_plans.id'), nullable=False)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
+    record_date = db.Column(db.Date, nullable=False)
+    actual_wear_minutes = db.Column(db.Integer)
+    clarity_level = db.Column(db.String(20))
+    fatigue_level = db.Column(db.String(20))
+    has_discomfort = db.Column(db.Boolean, default=False)
+    discomfort_detail = db.Column(db.String(200))
+    howling = db.Column(db.String(20))
+    howling_detail = db.Column(db.String(200))
+    related_feedback_id = db.Column(db.Integer, db.ForeignKey('feedback.id'))
+    related_adjustment_id = db.Column(db.Integer, db.ForeignKey('adjustments.id'))
+    related_followup_id = db.Column(db.Integer, db.ForeignKey('followups.id'))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        plan = TrainingPlan.query.get(self.plan_id)
+        profile = Profile.query.get(self.profile_id)
+        return {
+            'id': self.id,
+            'plan_id': self.plan_id,
+            'profile_id': self.profile_id,
+            'elderly_name': profile.elderly_name if profile else None,
+            'training_scenario': plan.training_scenario if plan else None,
+            'record_date': self.record_date.isoformat(),
+            'actual_wear_minutes': self.actual_wear_minutes,
+            'clarity_level': self.clarity_level,
+            'fatigue_level': self.fatigue_level,
+            'has_discomfort': self.has_discomfort,
+            'discomfort_detail': self.discomfort_detail,
+            'howling': self.howling,
+            'howling_detail': self.howling_detail,
+            'related_feedback_id': self.related_feedback_id,
+            'related_adjustment_id': self.related_adjustment_id,
+            'related_followup_id': self.related_followup_id,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat()
+        }
+
+
 class ServiceTicket(db.Model):
     __tablename__ = 'service_tickets'
 

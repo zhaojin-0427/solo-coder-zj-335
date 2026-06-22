@@ -1,1 +1,1 @@
-from . import profiles, feedback, adjustments, followups, statistics, batteries, tasks
+from . import profiles, feedback, adjustments, followups, statistics, batteries, tasks, training

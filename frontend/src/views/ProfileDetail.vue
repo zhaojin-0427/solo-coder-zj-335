@@ -641,6 +641,61 @@
           </div>
         </div>
       </el-tab-pane>
+
+      <el-tab-pane label="适应训练" name="training">
+        <div class="card">
+          <div class="page-header" style="border: none; margin: 0; padding: 0; margin-bottom: 20px">
+            <h3 style="font-size: 18px; margin: 0">
+              🎧 听力训练与佩戴适应计划
+            </h3>
+            <el-button type="primary" size="small" @click="router.push('/training')">
+              <el-icon><ArrowRight /></el-icon>
+              前往训练管理
+            </el-button>
+          </div>
+
+          <el-empty v-if="trainingPlans.length === 0" description="暂无训练计划" :image-size="60" />
+
+          <div v-for="plan in trainingPlans" :key="plan.id" class="detail-training-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <strong>{{ plan.training_scenario }}</strong>
+                <el-tag :type="plan.status === 'active' ? 'primary' : plan.status === 'completed' ? 'success' : 'warning'" size="small" effect="dark">
+                  {{ plan.status === 'active' ? '进行中' : plan.status === 'completed' ? '已完成' : plan.status === 'paused' ? '已暂停' : '已取消' }}
+                </el-tag>
+                <el-tag v-if="plan.streak_days && plan.streak_days > 0" type="warning" size="small">🔥 连续{{ plan.streak_days }}天</el-tag>
+              </div>
+              <span style="font-size: 13px; color: #606266">
+                进度：{{ plan.completed_days || 0 }}/{{ plan.cycle_days }}天 ({{ plan.completion_rate || 0 }}%)
+              </span>
+            </div>
+            <el-progress :percentage="Math.min(plan.completion_rate || 0, 100)" :stroke-width="8" :color="plan.completion_rate && plan.completion_rate >= 80 ? '#67c23a' : plan.completion_rate && plan.completion_rate >= 50 ? '#e6a23c' : '#f56c6c'" style="margin-bottom: 8px" />
+            <el-descriptions :column="4" size="small" border>
+              <el-descriptions-item label="训练目标">{{ plan.goal }}</el-descriptions-item>
+              <el-descriptions-item label="每日佩戴">{{ plan.daily_wear_minutes }} 分钟</el-descriptions-item>
+              <el-descriptions-item label="音量等级">{{ plan.volume_level }}</el-descriptions-item>
+              <el-descriptions-item label="负责人">{{ plan.responsible_person || '-' }}</el-descriptions-item>
+            </el-descriptions>
+
+            <div v-if="plan.recent_7_days && plan.recent_7_days.length > 0" style="margin-top: 8px">
+              <span style="font-size: 12px; color: #909399">近7天：</span>
+              <span v-for="day in plan.recent_7_days" :key="day.date" style="margin-right: 6px; font-size: 12px">
+                <span :style="{ color: day.completed ? '#67c23a' : '#c0c4cc' }">{{ day.date.substring(5) }} {{ day.completed ? '✅' : '⬜' }}</span>
+                <span v-if="day.has_discomfort" style="color: #f56c6c">⚠️</span>
+              </span>
+            </div>
+
+            <el-alert
+              v-if="plan.abnormal_alerts && plan.abnormal_alerts.length > 0"
+              :title="`异常提醒：近7天有${plan.abnormal_alerts.length}天出现不适/啸叫/明显疲劳`"
+              type="warning"
+              :closable="false"
+              show-icon
+              style="margin-top: 8px"
+            />
+          </div>
+        </div>
+      </el-tab-pane>
     </el-tabs>
 
     <el-dialog v-model="batteryDialogVisible" title="记录电池更换" width="500px">
@@ -889,11 +944,12 @@ import {
   Calendar,
   ChatDotRound,
   Box,
-  Close
+  Close,
+  ArrowRight
 } from '@element-plus/icons-vue'
-import { profileApi, feedbackApi, batteryApi, statisticsApi, taskApi, consumableApi, serviceTicketApi } from '@/api'
+import { profileApi, feedbackApi, batteryApi, statisticsApi, taskApi, consumableApi, serviceTicketApi, trainingApi } from '@/api'
 import { TASK_TYPES, TASK_PRIORITIES, TASK_STATUSES, CONSUMABLE_TYPES, EAR_OPTIONS, CONSUMABLE_STATUSES, SERVICE_TICKET_TYPES, SERVICE_METHODS, SERVICE_TICKET_STATUSES } from '@/types'
-import type { Profile, BatteryRecord, Suggestion, BatteryStats, BatteryAbnormalCycle, TaskSummary, Task, Consumable, ServiceTicket } from '@/types'
+import type { Profile, BatteryRecord, Suggestion, BatteryStats, BatteryAbnormalCycle, TaskSummary, Task, Consumable, ServiceTicket, TrainingPlan } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -916,6 +972,7 @@ const taskCompletionFeedback = ref('')
 
 const consumables = ref<Consumable[]>([])
 const serviceTickets = ref<ServiceTicket[]>([])
+const trainingPlans = ref<TrainingPlan[]>([])
 
 const detailConsumableDialogVisible = ref(false)
 const detailTicketDialogVisible = ref(false)
@@ -1036,7 +1093,7 @@ const loadData = async () => {
   loading.value = true
   const id = Number(route.params.id)
   try {
-    const [p, o, s, br, bs, ts, tasks, cs, st] = await Promise.all([
+    const [p, o, s, br, bs, ts, tasks, cs, st, tp] = await Promise.all([
       profileApi.get(id),
       statisticsApi.getOverview(id),
       feedbackApi.getSuggestions(id),
@@ -1045,7 +1102,8 @@ const loadData = async () => {
       statisticsApi.getTaskSummary(id),
       taskApi.getAll(id),
       consumableApi.getAll(id),
-      serviceTicketApi.getAll(id)
+      serviceTicketApi.getAll(id),
+      trainingApi.getPlans(id)
     ])
     profile.value = p.data
     overview.value = o.data
@@ -1056,6 +1114,7 @@ const loadData = async () => {
     profileTasks.value = tasks.data
     consumables.value = cs.data
     serviceTickets.value = st.data
+    trainingPlans.value = tp.data
   } catch (e) {
     ElMessage.error('加载失败')
   } finally {
@@ -1369,6 +1428,13 @@ onMounted(loadData)
 </script>
 
 <style scoped>
+.detail-training-card {
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+}
 .text-danger {
   color: #f56c6c;
   font-weight: 600;

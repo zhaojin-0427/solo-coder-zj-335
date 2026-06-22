@@ -41,6 +41,10 @@
           <el-icon><Box /></el-icon>
           <span>耗材与服务</span>
         </el-menu-item>
+        <el-menu-item index="/training">
+          <el-icon><Headset /></el-icon>
+          <span>适应训练</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -83,7 +87,8 @@ const breadcrumbs = computed(() => {
     '/followups': '复诊跟踪',
     '/statistics': '统计分析',
     '/tasks': '任务中心',
-    '/consumables-service': '耗材与服务'
+    '/consumables-service': '耗材与服务',
+    '/training': '适应训练'
   }
   const result: { path: string; label: string }[] = []
   let current = ''

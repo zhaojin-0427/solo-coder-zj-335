@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from collections import defaultdict
 from app import db
-from app.models import Feedback, Adjustment, Followup, BatteryRecord, Profile, Task
+from app.models import Feedback, Adjustment, Followup, BatteryRecord, Profile, Task, TrainingPlan, TrainingRecord
 
 bp = Blueprint('statistics', __name__)
 
@@ -618,4 +618,116 @@ def get_task_summary(profile_id):
             'completion_rate': completion_rate
         },
         'recent_tasks': [t.to_dict() for t in recent_tasks]
+    })
+
+
+@bp.route('/training-overview', methods=['GET'])
+def get_training_overview():
+    profiles = Profile.query.all()
+    total_plans = TrainingPlan.query.count()
+    active_plans = TrainingPlan.query.filter_by(status='active').count()
+    completed_plans = TrainingPlan.query.filter_by(status='completed').count()
+    total_records = TrainingRecord.query.count()
+
+    all_records = TrainingRecord.query.all()
+    avg_daily_wear = 0
+    if all_records:
+        wear_list = [r.actual_wear_minutes for r in all_records if r.actual_wear_minutes]
+        avg_daily_wear = round(sum(wear_list) / len(wear_list), 1) if wear_list else 0
+
+    overall_completion_rate = 0
+    active_plan_list = TrainingPlan.query.filter_by(status='active').all()
+    if active_plan_list:
+        rates = []
+        for p in active_plan_list:
+            rec_count = TrainingRecord.query.filter_by(plan_id=p.id).count()
+            rate = (rec_count / p.cycle_days * 100) if p.cycle_days > 0 else 0
+            rates.append(min(rate, 100))
+        overall_completion_rate = round(sum(rates) / len(rates), 1)
+
+    return jsonify({
+        'total_plans': total_plans,
+        'active_plans': active_plans,
+        'completed_plans': completed_plans,
+        'total_records': total_records,
+        'avg_daily_wear_minutes': avg_daily_wear,
+        'overall_completion_rate': overall_completion_rate
+    })
+
+
+@bp.route('/training-profile/<int:profile_id>', methods=['GET'])
+def get_training_profile_stats(profile_id):
+    plans = TrainingPlan.query.filter_by(profile_id=profile_id).all()
+    records = TrainingRecord.query.filter_by(profile_id=profile_id).order_by(TrainingRecord.record_date.asc()).all()
+
+    active_plans = [p for p in plans if p.status == 'active']
+    completed_plans = [p for p in plans if p.status == 'completed']
+
+    avg_completion_rate = 0
+    if active_plans:
+        rates = []
+        for p in active_plans:
+            rec_count = TrainingRecord.query.filter_by(plan_id=p.id).count()
+            rate = (rec_count / p.cycle_days * 100) if p.cycle_days > 0 else 0
+            rates.append(min(rate, 100))
+        avg_completion_rate = round(sum(rates) / len(rates), 1)
+
+    wear_list = [r.actual_wear_minutes for r in records if r.actual_wear_minutes]
+    avg_daily_wear = round(sum(wear_list) / len(wear_list), 1) if wear_list else 0
+
+    today = datetime.now().date()
+    streak = 0
+    if records:
+        date_set = {r.record_date for r in records}
+        check = today
+        while check in date_set:
+            streak += 1
+            check -= timedelta(days=1)
+
+    clarity_map = {'完全听不清': 1, '勉强听清': 2, '部分听清': 3, '大部分听清': 4, '完全听清': 5}
+    clarity_scores = []
+    for r in records:
+        if r.clarity_level and r.clarity_level in clarity_map:
+            clarity_scores.append({'date': r.record_date.isoformat(), 'score': clarity_map[r.clarity_level], 'level': r.clarity_level})
+
+    first_score = clarity_scores[0]['score'] if len(clarity_scores) >= 2 else None
+    last_score = clarity_scores[-1]['score'] if len(clarity_scores) >= 2 else None
+    clarity_change = (last_score - first_score) if (first_score is not None and last_score is not None) else 0
+
+    discomfort_by_scenario = defaultdict(lambda: {'count': 0, 'discomfort_count': 0, 'howling_count': 0, 'fatigue_count': 0})
+    for r in records:
+        plan = next((p for p in plans if p.id == r.plan_id), None)
+        scenario = plan.training_scenario if plan else '未知'
+        discomfort_by_scenario[scenario]['count'] += 1
+        if r.has_discomfort:
+            discomfort_by_scenario[scenario]['discomfort_count'] += 1
+        if r.howling and r.howling != '无':
+            discomfort_by_scenario[scenario]['howling_count'] += 1
+        if r.fatigue_level and r.fatigue_level in ['明显', '严重']:
+            discomfort_by_scenario[scenario]['fatigue_count'] += 1
+
+    high_discomfort_scenarios = []
+    for scenario, data in discomfort_by_scenario.items():
+        issue_total = data['discomfort_count'] + data['howling_count'] + data['fatigue_count']
+        if issue_total > 0:
+            high_discomfort_scenarios.append({
+                'scenario': scenario,
+                'total_records': data['count'],
+                'discomfort_count': data['discomfort_count'],
+                'howling_count': data['howling_count'],
+                'fatigue_count': data['fatigue_count'],
+                'issue_total': issue_total
+            })
+    high_discomfort_scenarios.sort(key=lambda x: x['issue_total'], reverse=True)
+
+    return jsonify({
+        'total_plans': len(plans),
+        'active_plans': len(active_plans),
+        'completed_plans': len(completed_plans),
+        'completion_rate': avg_completion_rate,
+        'avg_daily_wear_minutes': avg_daily_wear,
+        'streak_days': streak,
+        'clarity_change': clarity_change,
+        'clarity_trend': clarity_scores[-30:] if clarity_scores else [],
+        'high_discomfort_scenarios': high_discomfort_scenarios
     })
