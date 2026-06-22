@@ -248,6 +248,7 @@ export interface TaskProfileSummary {
   pending: number
   in_progress: number
   completed: number
+  cancelled: number
   overdue: number
   soon_due: number
 }
@@ -275,6 +276,7 @@ export interface TaskSummary {
     completed: number
     pending: number
     in_progress: number
+    cancelled: number
     overdue: number
     soon_due: number
     completion_rate: number

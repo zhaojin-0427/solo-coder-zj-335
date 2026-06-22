@@ -493,19 +493,21 @@ def get_task_overview():
     in_progress_count = sum(1 for t in all_tasks if t.status == 'in_progress')
     cancelled_count = sum(1 for t in all_tasks if t.status == 'cancelled')
 
+    active_total = total - cancelled_count
+
     overdue_count = 0
     for t in all_tasks:
-        if t.due_date and t.status != 'completed' and t.due_date < today:
+        if t.due_date and t.status not in ('completed', 'cancelled') and t.due_date < today:
             overdue_count += 1
 
     soon_due_count = 0
     for t in all_tasks:
-        if t.due_date and t.status != 'completed':
+        if t.due_date and t.status not in ('completed', 'cancelled'):
             delta = (t.due_date - today).days
             if 0 <= delta <= 3:
                 soon_due_count += 1
 
-    completion_rate = round((completed_count / total * 100), 1) if total > 0 else 0
+    completion_rate = round((completed_count / active_total * 100), 1) if active_total > 0 else 0
 
     type_distribution = defaultdict(int)
     for t in all_tasks:
@@ -527,6 +529,7 @@ def get_task_overview():
         'pending': 0,
         'in_progress': 0,
         'completed': 0,
+        'cancelled': 0,
         'overdue': 0,
         'soon_due': 0
     })
@@ -545,8 +548,10 @@ def get_task_overview():
             pt['in_progress'] += 1
         elif t.status == 'completed':
             pt['completed'] += 1
+        elif t.status == 'cancelled':
+            pt['cancelled'] += 1
 
-        if t.due_date and t.status != 'completed':
+        if t.due_date and t.status not in ('completed', 'cancelled'):
             delta = (t.due_date - today).days
             if delta < 0:
                 pt['overdue'] += 1
@@ -582,18 +587,21 @@ def get_task_summary(profile_id):
     completed = sum(1 for t in tasks if t.status == 'completed')
     pending = sum(1 for t in tasks if t.status == 'pending')
     in_progress = sum(1 for t in tasks if t.status == 'in_progress')
+    cancelled = sum(1 for t in tasks if t.status == 'cancelled')
+
+    active_total = total - cancelled
 
     overdue = 0
     soon_due = 0
     for t in tasks:
-        if t.due_date and t.status != 'completed':
+        if t.due_date and t.status not in ('completed', 'cancelled'):
             delta = (t.due_date - today).days
             if delta < 0:
                 overdue += 1
             elif delta <= 3:
                 soon_due += 1
 
-    completion_rate = round((completed / total * 100), 1) if total > 0 else 0
+    completion_rate = round((completed / active_total * 100), 1) if active_total > 0 else 0
 
     recent_tasks = sorted(tasks, key=lambda t: t.created_at, reverse=True)[:5]
 
@@ -604,6 +612,7 @@ def get_task_summary(profile_id):
             'completed': completed,
             'pending': pending,
             'in_progress': in_progress,
+            'cancelled': cancelled,
             'overdue': overdue,
             'soon_due': soon_due,
             'completion_rate': completion_rate

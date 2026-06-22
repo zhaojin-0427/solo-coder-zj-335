@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from app import db
-from app.models import Task
+from app.models import Task, Feedback, Adjustment, Followup
 
 bp = Blueprint('tasks', __name__)
 
@@ -10,12 +10,38 @@ TASK_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled']
 TASK_PRIORITIES = ['low', 'medium', 'high', 'urgent']
 
 
+def parse_bool_arg(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    return str(value).lower() in ('true', '1', 'yes')
+
+
+def validate_related_ids(data):
+    errors = []
+    if data.get('related_feedback_id') is not None:
+        fb = Feedback.query.get(data['related_feedback_id'])
+        if not fb:
+            errors.append(f'反馈记录 #{data["related_feedback_id"]} 不存在')
+    if data.get('related_adjustment_id') is not None:
+        adj = Adjustment.query.get(data['related_adjustment_id'])
+        if not adj:
+            errors.append(f'调试记录 #{data["related_adjustment_id"]} 不存在')
+    if data.get('related_followup_id') is not None:
+        fw = Followup.query.get(data['related_followup_id'])
+        if not fw:
+            errors.append(f'复诊记录 #{data["related_followup_id"]} 不存在')
+    return errors
+
+
 @bp.route('', methods=['GET'])
 def get_tasks():
     profile_id = request.args.get('profile_id', type=int)
     status = request.args.get('status')
     task_type = request.args.get('task_type')
-    is_overdue = request.args.get('is_overdue', type=bool)
+    is_overdue_raw = request.args.get('is_overdue')
+    is_overdue = parse_bool_arg(is_overdue_raw)
 
     query = Task.query
 
@@ -53,6 +79,10 @@ def create_task():
     if data.get('priority') and data['priority'] not in TASK_PRIORITIES:
         return jsonify({'error': 'Invalid priority'}), 400
 
+    errors = validate_related_ids(data)
+    if errors:
+        return jsonify({'error': '; '.join(errors)}), 400
+
     task = Task(
         profile_id=data.get('profile_id'),
         title=data.get('title'),
@@ -88,6 +118,10 @@ def update_task(id):
         return jsonify({'error': 'Invalid status'}), 400
     if data.get('priority') and data['priority'] not in TASK_PRIORITIES:
         return jsonify({'error': 'Invalid priority'}), 400
+
+    errors = validate_related_ids(data)
+    if errors:
+        return jsonify({'error': '; '.join(errors)}), 400
 
     task.profile_id = data.get('profile_id', task.profile_id)
     task.title = data.get('title', task.title)

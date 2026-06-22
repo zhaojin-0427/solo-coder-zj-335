@@ -225,7 +225,7 @@ class Task(db.Model):
         profile = Profile.query.get(self.profile_id)
         is_overdue = False
         days_until_due = None
-        if self.due_date and self.status != 'completed':
+        if self.due_date and self.status not in ('completed', 'cancelled'):
             today = datetime.utcnow().date()
             delta = (self.due_date - today).days
             days_until_due = delta
