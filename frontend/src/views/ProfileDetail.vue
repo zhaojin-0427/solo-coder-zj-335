@@ -569,7 +569,7 @@
 
           <div v-else class="ticket-list">
             <div
-              v-for="ticket in serviceTickets.slice().reverse().slice(0, 5)"
+              v-for="ticket in recentServiceTickets"
               :key="ticket.id"
               class="ticket-card"
               :class="{
@@ -829,6 +829,23 @@
         <el-form-item label="问题描述">
           <el-input v-model="detailTicketForm.description" type="textarea" :rows="3" placeholder="请详细描述问题情况" />
         </el-form-item>
+        <el-form-item label="照片说明">
+          <div style="width: 100%">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px">
+              <el-input v-model="newDetailPhotoUrl" placeholder="输入照片URL，按回车添加" @keyup.enter="addDetailPhotoUrl" />
+              <el-button type="primary" @click="addDetailPhotoUrl">添加</el-button>
+            </div>
+            <div v-if="detailTicketForm.photo_urls && detailTicketForm.photo_urls.length > 0" style="display: flex; flex-wrap: wrap; gap: 8px">
+              <div v-for="(url, idx) in detailTicketForm.photo_urls" :key="idx" style="position: relative">
+                <el-image :src="url" :preview-src-list="detailTicketForm.photo_urls" :initial-index="idx" fit="cover" style="width: 80px; height: 80px; border-radius: 4px" />
+                <el-button type="danger" size="small" circle style="position: absolute; top: -8px; right: -8px; padding: 0" @click="removeDetailPhotoUrl(idx)">
+                  <el-icon><Close /></el-icon>
+                </el-button>
+              </div>
+            </div>
+            <div v-else style="color: #909399; font-size: 13px">暂无照片，可在上方输入URL添加</div>
+          </div>
+        </el-form-item>
         <el-form-item v-if="detailTicketForm.status === 'completed'" label="处理结果">
           <el-input v-model="detailTicketForm.result" type="textarea" :rows="2" placeholder="请输入处理结果" />
         </el-form-item>
@@ -871,7 +888,8 @@ import {
   UserFilled,
   Calendar,
   ChatDotRound,
-  Box
+  Box,
+  Close
 } from '@element-plus/icons-vue'
 import { profileApi, feedbackApi, batteryApi, statisticsApi, taskApi, consumableApi, serviceTicketApi } from '@/api'
 import { TASK_TYPES, TASK_PRIORITIES, TASK_STATUSES, CONSUMABLE_TYPES, EAR_OPTIONS, CONSUMABLE_STATUSES, SERVICE_TICKET_TYPES, SERVICE_METHODS, SERVICE_TICKET_STATUSES } from '@/types'
@@ -907,6 +925,7 @@ const isDetailTicketEdit = ref(false)
 const currentDetailConsumable = ref<Consumable>()
 const currentDetailTicket = ref<ServiceTicket>()
 const detailTicketResultFeedback = ref('')
+const newDetailPhotoUrl = ref('')
 
 const detailConsumableForm = ref<Partial<Consumable>>({
   profile_id: Number(route.params.id),
@@ -938,6 +957,12 @@ const consumableAlerts = computed(() => {
   const soon_due = consumables.value.filter(c => c.is_soon_due && !c.is_overdue).length
   const low_stock = consumables.value.filter(c => c.is_low_stock).length
   return { overdue, soon_due, low_stock }
+})
+
+const recentServiceTickets = computed(() => {
+  return [...serviceTickets.value]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5)
 })
 
 const taskForm = ref<Partial<Task>>({
@@ -1296,6 +1321,26 @@ const saveDetailTicket = async () => {
     loadData()
   } catch (e) {
     ElMessage.error(extractDetailErrorMessage(e))
+  }
+}
+
+const addDetailPhotoUrl = () => {
+  const url = newDetailPhotoUrl.value.trim()
+  if (!url) return
+  if (!detailTicketForm.value.photo_urls) {
+    detailTicketForm.value.photo_urls = []
+  }
+  if (detailTicketForm.value.photo_urls.includes(url)) {
+    ElMessage.warning('该照片URL已添加')
+    return
+  }
+  detailTicketForm.value.photo_urls.push(url)
+  newDetailPhotoUrl.value = ''
+}
+
+const removeDetailPhotoUrl = (index: number) => {
+  if (detailTicketForm.value.photo_urls) {
+    detailTicketForm.value.photo_urls.splice(index, 1)
   }
 }
 

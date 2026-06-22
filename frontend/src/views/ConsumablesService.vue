@@ -427,6 +427,23 @@
         <el-form-item label="问题描述">
           <el-input v-model="ticketForm.description" type="textarea" :rows="3" placeholder="请详细描述问题情况" />
         </el-form-item>
+        <el-form-item label="照片说明">
+          <div style="width: 100%">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px">
+              <el-input v-model="newPhotoUrl" placeholder="输入照片URL，按回车添加" @keyup.enter="addPhotoUrl" />
+              <el-button type="primary" @click="addPhotoUrl">添加</el-button>
+            </div>
+            <div v-if="ticketForm.photo_urls && ticketForm.photo_urls.length > 0" style="display: flex; flex-wrap: wrap; gap: 8px">
+              <div v-for="(url, idx) in ticketForm.photo_urls" :key="idx" style="position: relative">
+                <el-image :src="url" :preview-src-list="ticketForm.photo_urls" :initial-index="idx" fit="cover" style="width: 80px; height: 80px; border-radius: 4px" />
+                <el-button type="danger" size="small" circle style="position: absolute; top: -8px; right: -8px; padding: 0" @click="removePhotoUrl(idx)">
+                  <el-icon><Close /></el-icon>
+                </el-button>
+              </div>
+            </div>
+            <div v-else style="color: #909399; font-size: 13px">暂无照片，可在上方输入URL添加</div>
+          </div>
+        </el-form-item>
         <el-form-item v-if="ticketForm.status === 'completed'" label="处理结果">
           <el-input v-model="ticketForm.result" type="textarea" :rows="2" placeholder="请输入处理结果" />
         </el-form-item>
@@ -468,7 +485,8 @@ import {
   Calendar,
   Clock,
   ChatDotRound,
-  Check
+  Check,
+  Close
 } from '@element-plus/icons-vue'
 import { profileApi, consumableApi, serviceTicketApi } from '@/api'
 import {
@@ -507,6 +525,7 @@ const isTicketEdit = ref(false)
 const currentConsumable = ref<Consumable>()
 const currentTicket = ref<ServiceTicket>()
 const ticketResultFeedback = ref('')
+const newPhotoUrl = ref('')
 
 const consumableForm = ref<Partial<Consumable>>({
   profile_id: undefined,
@@ -537,7 +556,7 @@ const stats = computed(() => {
   const normal = consumables.value.filter(c => c.status === 'normal').length
   const soon_due = consumables.value.filter(c => c.status === 'soon_due').length
   const overdue = consumables.value.filter(c => c.status === 'overdue').length
-  const low_stock = consumables.value.filter(c => c.status === 'low_stock').length
+  const low_stock = consumables.value.filter(c => c.is_low_stock).length
   return { normal, soon_due, overdue, low_stock }
 })
 
@@ -769,6 +788,26 @@ const deleteTicket = async (t: ServiceTicket) => {
     loadTickets()
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+const addPhotoUrl = () => {
+  const url = newPhotoUrl.value.trim()
+  if (!url) return
+  if (!ticketForm.value.photo_urls) {
+    ticketForm.value.photo_urls = []
+  }
+  if (ticketForm.value.photo_urls.includes(url)) {
+    ElMessage.warning('该照片URL已添加')
+    return
+  }
+  ticketForm.value.photo_urls.push(url)
+  newPhotoUrl.value = ''
+}
+
+const removePhotoUrl = (index: number) => {
+  if (ticketForm.value.photo_urls) {
+    ticketForm.value.photo_urls.splice(index, 1)
   }
 }
 
