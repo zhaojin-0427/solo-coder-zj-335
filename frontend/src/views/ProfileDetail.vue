@@ -85,6 +85,33 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="20" style="margin-bottom: 20px">
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-value" style="color: #67c23a">{{ consumables.length }}</div>
+          <div class="stat-label">耗材总数</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-value" style="color: #f56c6c">{{ consumableAlerts.overdue }}</div>
+          <div class="stat-label">已逾期耗材</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-value" style="color: #e6a23c">{{ consumableAlerts.soon_due + consumableAlerts.low_stock }}</div>
+          <div class="stat-label">待关注耗材</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-value" style="color: #409eff">{{ serviceTickets.length }}</div>
+          <div class="stat-label">服务工单总数</div>
+        </div>
+      </el-col>
+    </el-row>
+
     <el-tabs v-model="activeTab">
       <el-tab-pane label="基本信息" name="basic">
         <div class="card">
@@ -423,6 +450,197 @@
           </div>
         </div>
       </el-tab-pane>
+
+      <el-tab-pane label="耗材与服务" name="consumables-service">
+        <div class="card">
+          <div class="page-header" style="border: none; margin: 0; padding: 0; margin-bottom: 20px">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <h3 style="font-size: 18px; margin: 0">
+                <el-icon color="#409eff" style="margin-right: 8px"><Box /></el-icon>
+                耗材状态与服务工单
+              </h3>
+              <el-tag v-if="consumableAlerts.overdue > 0" type="danger" effect="dark">
+                {{ consumableAlerts.overdue }} 项已逾期
+              </el-tag>
+              <el-tag v-if="consumableAlerts.soon_due > 0" type="warning" effect="dark">
+                {{ consumableAlerts.soon_due }} 项即将更换
+              </el-tag>
+              <el-tag v-if="consumableAlerts.low_stock > 0" type="warning">
+                {{ consumableAlerts.low_stock }} 项库存不足
+              </el-tag>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <el-button type="primary" size="small" @click="openDetailConsumableDialog">
+                <el-icon><Plus /></el-icon>
+                登记耗材
+              </el-button>
+              <el-button type="success" size="small" @click="openDetailTicketDialog">
+                <el-icon><Plus /></el-icon>
+                发起工单
+              </el-button>
+            </div>
+          </div>
+
+          <el-divider content-position="left">耗材清单</el-divider>
+
+          <el-empty
+            v-if="consumables.length === 0"
+            description="暂无耗材记录，点击上方按钮登记"
+            :image-size="60"
+          />
+
+          <el-table v-else :data="consumables" style="width: 100%; margin-bottom: 24px">
+            <el-table-column label="耗材名称" width="140">
+              <template #default="{ row }">
+                <span style="font-weight: 600">{{ getDetailConsumableTypeIcon(row.consumable_type) }} {{ row.name }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="consumable_type" label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag size="small">{{ row.consumable_type }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="ear" label="耳别" width="70">
+              <template #default="{ row }">
+                <el-tag v-if="row.ear" :type="row.ear === '左耳' ? 'primary' : row.ear === '右耳' ? 'success' : 'info'" size="small">
+                  {{ row.ear }}
+                </el-tag>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="更换周期" width="90">
+              <template #default="{ row }">
+                <span v-if="row.replacement_cycle_days">{{ row.replacement_cycle_days }} 天</span>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="last_replacement_date" label="最近更换" width="100">
+              <template #default="{ row }">
+                <span>{{ row.last_replacement_date || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="预计下次更换" width="160">
+              <template #default="{ row }">
+                <span v-if="row.next_replacement_date" :class="{ 'text-danger': row.is_overdue, 'text-warning': row.is_soon_due }">
+                  {{ row.next_replacement_date }}
+                  <el-tag v-if="row.is_overdue" type="danger" size="small" effect="dark" style="margin-left: 4px">
+                    逾期 {{ Math.abs(row.days_until_replacement || 0) }} 天
+                  </el-tag>
+                  <el-tag v-else-if="row.is_soon_due" type="warning" size="small" style="margin-left: 4px">
+                    {{ row.days_until_replacement === 0 ? '今天' : `${row.days_until_replacement} 天` }}
+                  </el-tag>
+                </span>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="库存" width="90">
+              <template #default="{ row }">
+                <span :class="{ 'text-danger': row.is_low_stock }">
+                  {{ row.stock_quantity ?? 0 }}
+                  <el-tag v-if="row.is_low_stock" type="danger" size="small" effect="dark" style="margin-left: 4px">不足</el-tag>
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag :type="getDetailConsumableStatusTagType(row.status)" size="small" effect="dark">
+                  {{ getDetailConsumableStatusLabel(row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="notes" label="备注" min-width="100" show-overflow-tooltip />
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" @click="openDetailEditConsumableDialog(row)">
+                  <el-icon><Edit /></el-icon>
+                  编辑
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <el-divider content-position="left">最近服务工单</el-divider>
+
+          <el-empty
+            v-if="serviceTickets.length === 0"
+            description="暂无服务工单，点击上方按钮发起"
+            :image-size="60"
+          />
+
+          <div v-else class="ticket-list">
+            <div
+              v-for="ticket in serviceTickets.slice().reverse().slice(0, 5)"
+              :key="ticket.id"
+              class="ticket-card"
+              :class="{
+                'ticket-pending': ticket.status === 'pending',
+                'ticket-progress': ticket.status === 'in_progress',
+                'ticket-completed': ticket.status === 'completed'
+              }"
+            >
+              <div class="ticket-header">
+                <div class="ticket-title">
+                  <span class="ticket-type-icon">{{ getDetailIssueTypeIcon(ticket.issue_type) }}</span>
+                  <strong>{{ ticket.issue_type }}</strong>
+                  <el-tag
+                    :type="getDetailTicketStatusTagType(ticket.status)"
+                    size="small"
+                    effect="dark"
+                    style="margin-left: 8px"
+                  >
+                    {{ getDetailTicketStatusLabel(ticket.status) }}
+                  </el-tag>
+                </div>
+                <div class="ticket-actions">
+                  <el-button
+                    v-if="ticket.status !== 'completed' && ticket.status !== 'cancelled'"
+                    type="success"
+                    size="small"
+                    @click.stop="openDetailCompleteTicketDialog(ticket)"
+                  >
+                    <el-icon><Check /></el-icon>
+                    完成
+                  </el-button>
+                  <el-button size="small" @click.stop="openDetailEditTicketDialog(ticket)">
+                    <el-icon><Edit /></el-icon>
+                    编辑
+                  </el-button>
+                </div>
+              </div>
+
+              <div class="ticket-meta">
+                <el-tag v-if="ticket.consumable_name" type="warning" size="small">
+                  关联耗材：{{ ticket.consumable_name }}
+                </el-tag>
+                <el-tag v-if="ticket.service_method" size="small">
+                  {{ getDetailServiceMethodIcon(ticket.service_method) }} {{ ticket.service_method }}
+                </el-tag>
+                <span v-if="ticket.handler" class="meta-item">
+                  <el-icon><UserFilled /></el-icon>
+                  处理人员：{{ ticket.handler }}
+                </span>
+                <span v-if="ticket.appointment_time" class="meta-item">
+                  <el-icon><Calendar /></el-icon>
+                  预约：{{ formatDetailDateTime(ticket.appointment_time) }}
+                </span>
+                <span class="meta-item">
+                  <el-icon><Clock /></el-icon>
+                  创建：{{ formatDetailDateTime(ticket.created_at) }}
+                </span>
+              </div>
+
+              <div v-if="ticket.description" class="ticket-description">
+                <strong>问题描述：</strong>{{ ticket.description }}
+              </div>
+
+              <div v-if="ticket.result" class="ticket-result">
+                <el-icon color="#67c23a"><ChatDotRound /></el-icon>
+                <strong>处理结果：</strong>{{ ticket.result }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
     </el-tabs>
 
     <el-dialog v-model="batteryDialogVisible" title="记录电池更换" width="500px">
@@ -522,6 +740,119 @@
         <el-button type="primary" @click="confirmCompleteTask">确认完成</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="detailConsumableDialogVisible" :title="isDetailConsumableEdit ? '编辑耗材' : '登记耗材'" width="600px">
+      <el-form :model="detailConsumableForm" label-width="110px">
+        <el-form-item label="耗材名称" required>
+          <el-input v-model="detailConsumableForm.name" placeholder="请输入耗材名称" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item label="耗材类型" required>
+          <el-select v-model="detailConsumableForm.consumable_type" placeholder="请选择耗材类型" style="width: 100%">
+            <el-option v-for="t in CONSUMABLE_TYPES" :key="t.value" :label="`${t.icon} ${t.label}`" :value="t.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="适配耳别">
+          <el-select v-model="detailConsumableForm.ear" placeholder="请选择耳别" clearable style="width: 100%">
+            <el-option v-for="e in EAR_OPTIONS" :key="e.value" :label="e.label" :value="e.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="启用日期">
+          <el-date-picker
+            v-model="detailConsumableForm.start_date"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择启用日期"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="建议更换周期">
+          <el-input-number v-model="detailConsumableForm.replacement_cycle_days" :min="1" :max="3650" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="最近更换日期">
+          <el-date-picker
+            v-model="detailConsumableForm.last_replacement_date"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择最近更换日期"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="库存数量">
+          <el-input-number v-model="detailConsumableForm.stock_quantity" :min="0" :max="9999" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="detailConsumableForm.notes" type="textarea" :rows="2" placeholder="请输入备注信息" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="detailConsumableDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveDetailConsumable">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="detailTicketDialogVisible" :title="isDetailTicketEdit ? '编辑工单' : '发起服务工单'" width="600px">
+      <el-form :model="detailTicketForm" label-width="110px">
+        <el-form-item label="问题类型" required>
+          <el-select v-model="detailTicketForm.issue_type" placeholder="请选择问题类型" style="width: 100%">
+            <el-option v-for="t in SERVICE_TICKET_TYPES" :key="t.value" :label="`${t.icon} ${t.label}`" :value="t.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关联耗材">
+          <el-select v-model="detailTicketForm.consumable_id" placeholder="选择关联的耗材(可选)" clearable style="width: 100%">
+            <el-option v-for="c in consumables" :key="c.id" :label="`${c.name} (${c.consumable_type})`" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="服务方式">
+          <el-radio-group v-model="detailTicketForm.service_method">
+            <el-radio v-for="m in SERVICE_METHODS" :key="m.value" :value="m.value">
+              {{ m.icon }} {{ m.label }}
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="预约时间">
+          <el-date-picker
+            v-model="detailTicketForm.appointment_time"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            placeholder="选择预约时间"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="处理人员">
+          <el-input v-model="detailTicketForm.handler" placeholder="请输入处理人员姓名" />
+        </el-form-item>
+        <el-form-item label="工单状态">
+          <el-select v-model="detailTicketForm.status" style="width: 100%">
+            <el-option v-for="s in SERVICE_TICKET_STATUSES" :key="s.value" :label="s.label" :value="s.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="问题描述">
+          <el-input v-model="detailTicketForm.description" type="textarea" :rows="3" placeholder="请详细描述问题情况" />
+        </el-form-item>
+        <el-form-item v-if="detailTicketForm.status === 'completed'" label="处理结果">
+          <el-input v-model="detailTicketForm.result" type="textarea" :rows="2" placeholder="请输入处理结果" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="detailTicketDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveDetailTicket">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="detailCompleteTicketDialogVisible" title="完成工单" width="500px">
+      <div style="margin-bottom: 16px">
+        <p><strong>问题类型：</strong>{{ currentDetailTicket?.issue_type }}</p>
+      </div>
+      <el-form label-width="100px">
+        <el-form-item label="处理结果">
+          <el-input v-model="detailTicketResultFeedback" type="textarea" :rows="3" placeholder="请描述处理结果" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="detailCompleteTicketDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmDetailCompleteTicket">确认完成</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -539,11 +870,12 @@ import {
   Edit,
   UserFilled,
   Calendar,
-  ChatDotRound
+  ChatDotRound,
+  Box
 } from '@element-plus/icons-vue'
-import { profileApi, feedbackApi, batteryApi, statisticsApi, taskApi } from '@/api'
-import { TASK_TYPES, TASK_PRIORITIES, TASK_STATUSES } from '@/types'
-import type { Profile, BatteryRecord, Suggestion, BatteryStats, BatteryAbnormalCycle, TaskSummary, Task } from '@/types'
+import { profileApi, feedbackApi, batteryApi, statisticsApi, taskApi, consumableApi, serviceTicketApi } from '@/api'
+import { TASK_TYPES, TASK_PRIORITIES, TASK_STATUSES, CONSUMABLE_TYPES, EAR_OPTIONS, CONSUMABLE_STATUSES, SERVICE_TICKET_TYPES, SERVICE_METHODS, SERVICE_TICKET_STATUSES } from '@/types'
+import type { Profile, BatteryRecord, Suggestion, BatteryStats, BatteryAbnormalCycle, TaskSummary, Task, Consumable, ServiceTicket } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -563,6 +895,50 @@ const completeTaskDialogVisible = ref(false)
 const isTaskEdit = ref(false)
 const currentTask = ref<Task>()
 const taskCompletionFeedback = ref('')
+
+const consumables = ref<Consumable[]>([])
+const serviceTickets = ref<ServiceTicket[]>([])
+
+const detailConsumableDialogVisible = ref(false)
+const detailTicketDialogVisible = ref(false)
+const detailCompleteTicketDialogVisible = ref(false)
+const isDetailConsumableEdit = ref(false)
+const isDetailTicketEdit = ref(false)
+const currentDetailConsumable = ref<Consumable>()
+const currentDetailTicket = ref<ServiceTicket>()
+const detailTicketResultFeedback = ref('')
+
+const detailConsumableForm = ref<Partial<Consumable>>({
+  profile_id: Number(route.params.id),
+  name: '',
+  consumable_type: '耳塞',
+  ear: '',
+  start_date: '',
+  replacement_cycle_days: 90,
+  stock_quantity: 0,
+  last_replacement_date: '',
+  notes: ''
+})
+
+const detailTicketForm = ref<Partial<ServiceTicket>>({
+  profile_id: Number(route.params.id),
+  consumable_id: undefined,
+  issue_type: '耗材损坏',
+  service_method: '上门服务',
+  appointment_time: '',
+  handler: '',
+  status: 'pending',
+  result: '',
+  description: '',
+  photo_urls: []
+})
+
+const consumableAlerts = computed(() => {
+  const overdue = consumables.value.filter(c => c.is_overdue).length
+  const soon_due = consumables.value.filter(c => c.is_soon_due && !c.is_overdue).length
+  const low_stock = consumables.value.filter(c => c.is_low_stock).length
+  return { overdue, soon_due, low_stock }
+})
 
 const taskForm = ref<Partial<Task>>({
   profile_id: Number(route.params.id),
@@ -635,14 +1011,16 @@ const loadData = async () => {
   loading.value = true
   const id = Number(route.params.id)
   try {
-    const [p, o, s, br, bs, ts, tasks] = await Promise.all([
+    const [p, o, s, br, bs, ts, tasks, cs, st] = await Promise.all([
       profileApi.get(id),
       statisticsApi.getOverview(id),
       feedbackApi.getSuggestions(id),
       batteryApi.getAll(id),
       batteryApi.getStats(id),
       statisticsApi.getTaskSummary(id),
-      taskApi.getAll(id)
+      taskApi.getAll(id),
+      consumableApi.getAll(id),
+      serviceTicketApi.getAll(id)
     ])
     profile.value = p.data
     overview.value = o.data
@@ -651,6 +1029,8 @@ const loadData = async () => {
     batteryStats.value = bs.data
     taskSummary.value = ts.data
     profileTasks.value = tasks.data
+    consumables.value = cs.data
+    serviceTickets.value = st.data
   } catch (e) {
     ElMessage.error('加载失败')
   } finally {
@@ -757,6 +1137,165 @@ const confirmCompleteTask = async () => {
     loadData()
   } catch (e) {
     ElMessage.error('操作失败')
+  }
+}
+
+const getDetailConsumableTypeIcon = (type: string) => {
+  const item = CONSUMABLE_TYPES.find(t => t.value === type)
+  return item?.icon || '📦'
+}
+
+const getDetailConsumableStatusLabel = (status?: string) => {
+  const item = CONSUMABLE_STATUSES.find(s => s.value === status)
+  return item?.label || status
+}
+
+const getDetailConsumableStatusTagType = (status?: string) => {
+  if (status === 'overdue' || status === 'low_stock') return 'danger'
+  if (status === 'soon_due') return 'warning'
+  return 'success'
+}
+
+const getDetailIssueTypeIcon = (type: string) => {
+  const item = SERVICE_TICKET_TYPES.find(t => t.value === type)
+  return item?.icon || '📝'
+}
+
+const getDetailServiceMethodIcon = (method: string) => {
+  const item = SERVICE_METHODS.find(m => m.value === method)
+  return item?.icon || ''
+}
+
+const getDetailTicketStatusLabel = (status?: string) => {
+  const item = SERVICE_TICKET_STATUSES.find(s => s.value === status)
+  return item?.label || status
+}
+
+const getDetailTicketStatusTagType = (status?: string) => {
+  if (status === 'completed') return 'success'
+  if (status === 'in_progress') return 'primary'
+  if (status === 'cancelled') return 'info'
+  return 'warning'
+}
+
+const formatDetailDateTime = (str?: string) => {
+  if (!str) return '-'
+  return str.replace('T', ' ').slice(0, 16)
+}
+
+const extractDetailErrorMessage = (err: any) => {
+  const resp = err?.response?.data
+  if (typeof resp === 'string') return resp
+  if (resp?.error) return resp.error
+  if (resp?.message) return resp.message
+  return '操作失败'
+}
+
+const openDetailConsumableDialog = () => {
+  isDetailConsumableEdit.value = false
+  detailConsumableForm.value = {
+    profile_id: Number(route.params.id),
+    name: '',
+    consumable_type: '耳塞',
+    ear: '',
+    start_date: new Date().toISOString().split('T')[0],
+    replacement_cycle_days: 90,
+    stock_quantity: 0,
+    last_replacement_date: '',
+    notes: ''
+  }
+  detailConsumableDialogVisible.value = true
+}
+
+const openDetailEditConsumableDialog = (c: Consumable) => {
+  isDetailConsumableEdit.value = true
+  currentDetailConsumable.value = c
+  detailConsumableForm.value = { ...c }
+  detailConsumableDialogVisible.value = true
+}
+
+const saveDetailConsumable = async () => {
+  if (!detailConsumableForm.value.name || !detailConsumableForm.value.consumable_type) {
+    ElMessage.warning('请填写必填项')
+    return
+  }
+  try {
+    if (isDetailConsumableEdit.value && currentDetailConsumable.value?.id) {
+      await consumableApi.update(currentDetailConsumable.value.id, detailConsumableForm.value)
+      ElMessage.success('更新成功')
+    } else {
+      await consumableApi.create(detailConsumableForm.value as Consumable)
+      ElMessage.success('登记成功')
+    }
+    detailConsumableDialogVisible.value = false
+    loadData()
+  } catch (e) {
+    ElMessage.error(extractDetailErrorMessage(e))
+  }
+}
+
+const openDetailTicketDialog = () => {
+  isDetailTicketEdit.value = false
+  detailTicketForm.value = {
+    profile_id: Number(route.params.id),
+    consumable_id: undefined,
+    issue_type: '耗材损坏',
+    service_method: '上门服务',
+    appointment_time: '',
+    handler: '',
+    status: 'pending',
+    result: '',
+    description: '',
+    photo_urls: []
+  }
+  detailTicketDialogVisible.value = true
+}
+
+const openDetailEditTicketDialog = (t: ServiceTicket) => {
+  isDetailTicketEdit.value = true
+  currentDetailTicket.value = t
+  detailTicketForm.value = { ...t }
+  detailTicketDialogVisible.value = true
+}
+
+const openDetailCompleteTicketDialog = (t: ServiceTicket) => {
+  currentDetailTicket.value = t
+  detailTicketResultFeedback.value = ''
+  detailCompleteTicketDialogVisible.value = true
+}
+
+const confirmDetailCompleteTicket = async () => {
+  if (!currentDetailTicket.value?.id) return
+  try {
+    await serviceTicketApi.update(currentDetailTicket.value.id, {
+      status: 'completed',
+      result: detailTicketResultFeedback.value
+    })
+    ElMessage.success('工单已完成')
+    detailCompleteTicketDialogVisible.value = false
+    loadData()
+  } catch (e) {
+    ElMessage.error(extractDetailErrorMessage(e))
+  }
+}
+
+const saveDetailTicket = async () => {
+  if (!detailTicketForm.value.issue_type) {
+    ElMessage.warning('请填写必填项')
+    return
+  }
+  try {
+    if (isDetailTicketEdit.value && currentDetailTicket.value?.id) {
+      await serviceTicketApi.update(currentDetailTicket.value.id, detailTicketForm.value)
+      ElMessage.success('更新成功')
+    } else {
+      await serviceTicketApi.create(detailTicketForm.value as ServiceTicket)
+      ElMessage.success('工单已发起')
+    }
+    detailTicketDialogVisible.value = false
+    loadData()
+  } catch (e) {
+    ElMessage.error(extractDetailErrorMessage(e))
   }
 }
 
@@ -882,6 +1421,103 @@ onMounted(loadData)
 }
 
 .task-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #67c23a;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: #f0f9eb;
+  border-radius: 4px;
+}
+
+.text-danger {
+  color: #f56c6c;
+  font-weight: 600;
+}
+.text-warning {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+.ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ticket-card {
+  padding: 14px 18px;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  transition: all 0.2s;
+  border-left: 4px solid #dcdfe6;
+}
+
+.ticket-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ticket-card.ticket-pending {
+  border-left-color: #e6a23c;
+  background: #fdf6ec;
+}
+
+.ticket-card.ticket-progress {
+  border-left-color: #409eff;
+  background: #ecf5ff;
+}
+
+.ticket-card.ticket-completed {
+  border-left-color: #67c23a;
+  opacity: 0.85;
+}
+
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.ticket-title {
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ticket-type-icon {
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+.ticket-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ticket-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ticket-description {
+  color: #606266;
+  font-size: 13px;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.ticket-result {
   display: flex;
   align-items: flex-start;
   gap: 6px;

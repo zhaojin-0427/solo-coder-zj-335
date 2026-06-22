@@ -306,3 +306,99 @@ export const TASK_STATUSES = [
   { value: 'completed', label: '已完成', color: '#67c23a' },
   { value: 'cancelled', label: '已取消', color: '#c0c4cc' }
 ]
+
+export interface Consumable {
+  id?: number
+  profile_id: number
+  elderly_name?: string
+  name: string
+  consumable_type: string
+  ear?: string
+  start_date?: string
+  replacement_cycle_days?: number
+  stock_quantity?: number
+  last_replacement_date?: string
+  next_replacement_date?: string
+  days_until_replacement?: number
+  notes?: string
+  is_overdue?: boolean
+  is_soon_due?: boolean
+  is_low_stock?: boolean
+  status?: 'normal' | 'soon_due' | 'overdue' | 'low_stock'
+  created_at?: string
+  updated_at?: string
+}
+
+export const CONSUMABLE_TYPES = [
+  { value: '耳塞', label: '耳塞', icon: '👂' },
+  { value: '导声管', label: '导声管', icon: '🔌' },
+  { value: '干燥盒', label: '干燥盒', icon: '📦' },
+  { value: '电池', label: '电池', icon: '🔋' },
+  { value: '清洁刷', label: '清洁刷', icon: '🧹' },
+  { value: '其他', label: '其他', icon: '📦' }
+]
+
+export const EAR_OPTIONS = [
+  { value: '左耳', label: '左耳' },
+  { value: '右耳', label: '右耳' },
+  { value: '双耳', label: '双耳' },
+  { value: '不适用', label: '不适用' }
+]
+
+export const CONSUMABLE_STATUSES = [
+  { value: 'normal', label: '正常', color: '#67c23a' },
+  { value: 'soon_due', label: '即将更换', color: '#e6a23c' },
+  { value: 'overdue', label: '已逾期', color: '#f56c6c' },
+  { value: 'low_stock', label: '库存不足', color: '#f56c6c' }
+]
+
+export interface ServiceTicket {
+  id?: number
+  profile_id: number
+  elderly_name?: string
+  consumable_id?: number
+  consumable_name?: string
+  issue_type: string
+  service_method?: string
+  appointment_time?: string
+  handler?: string
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  result?: string
+  description?: string
+  photo_urls?: string[]
+  created_at?: string
+  updated_at?: string
+}
+
+export const SERVICE_TICKET_TYPES = [
+  { value: '耗材损坏', label: '耗材损坏', icon: '💥' },
+  { value: '佩戴不稳', label: '佩戴不稳', icon: '⚠️' },
+  { value: '声音变闷', label: '声音变闷', icon: '🔇' },
+  { value: '清洁困难', label: '清洁困难', icon: '🧼' },
+  { value: '其他', label: '其他', icon: '📝' }
+]
+
+export const SERVICE_METHODS = [
+  { value: '上门服务', label: '上门服务', icon: '🚗' },
+  { value: '到店服务', label: '到店服务', icon: '🏪' }
+]
+
+export const SERVICE_TICKET_STATUSES = [
+  { value: 'pending', label: '待处理', color: '#909399' },
+  { value: 'in_progress', label: '处理中', color: '#409eff' },
+  { value: 'completed', label: '已完成', color: '#67c23a' },
+  { value: 'cancelled', label: '已取消', color: '#c0c4cc' }
+]
+
+export interface ConsumableMeta {
+  consumable_types: string[]
+  ear_options: string[]
+  status_labels: Record<string, string>
+}
+
+export interface ServiceTicketMeta {
+  issue_types: string[]
+  service_methods: string[]
+  statuses: string[]
+  status_labels: Record<string, string>
+}

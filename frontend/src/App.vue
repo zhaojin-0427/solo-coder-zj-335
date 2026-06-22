@@ -37,6 +37,10 @@
           <el-icon><Tickets /></el-icon>
           <span>任务中心</span>
         </el-menu-item>
+        <el-menu-item index="/consumables-service">
+          <el-icon><Box /></el-icon>
+          <span>耗材与服务</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -78,7 +82,8 @@ const breadcrumbs = computed(() => {
     '/adjustments': '调试记录',
     '/followups': '复诊跟踪',
     '/statistics': '统计分析',
-    '/tasks': '任务中心'
+    '/tasks': '任务中心',
+    '/consumables-service': '耗材与服务'
   }
   const result: { path: string; label: string }[] = []
   let current = ''

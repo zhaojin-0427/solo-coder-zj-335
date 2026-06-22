@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings, Task, TaskMeta, TaskOverview, TaskSummary } from '@/types'
+import type { Profile, Feedback, Adjustment, Followup, BatteryRecord, BatteryStats, BatteryWarnings, Task, TaskMeta, TaskOverview, TaskSummary, Consumable, ServiceTicket, ConsumableMeta, ServiceTicketMeta } from '@/types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -96,6 +96,39 @@ export const taskApi = {
   complete: (id: number, completionFeedback?: string) => api.post<Task>(`/tasks/${id}/complete`, { completion_feedback: completionFeedback }),
   delete: (id: number) => api.delete(`/tasks/${id}`),
   getMeta: () => api.get<TaskMeta>('/tasks/meta')
+}
+
+export const consumableApi = {
+  getAll: (profileId?: number, consumableType?: string, ear?: string, isLowStock?: boolean, needsReplacement?: boolean) => {
+    const params: Record<string, any> = {}
+    if (profileId) params.profile_id = profileId
+    if (consumableType) params.consumable_type = consumableType
+    if (ear) params.ear = ear
+    if (isLowStock !== undefined) params.is_low_stock = isLowStock
+    if (needsReplacement !== undefined) params.needs_replacement = needsReplacement
+    return api.get<Consumable[]>('/consumables', { params })
+  },
+  get: (id: number) => api.get<Consumable>(`/consumables/${id}`),
+  create: (data: Consumable) => api.post<Consumable>('/consumables', data),
+  update: (id: number, data: Partial<Consumable>) => api.put<Consumable>(`/consumables/${id}`, data),
+  delete: (id: number) => api.delete(`/consumables/${id}`),
+  getMeta: () => api.get<ConsumableMeta>('/consumables/meta')
+}
+
+export const serviceTicketApi = {
+  getAll: (profileId?: number, status?: string, issueType?: string, serviceMethod?: string) => {
+    const params: Record<string, any> = {}
+    if (profileId) params.profile_id = profileId
+    if (status) params.status = status
+    if (issueType) params.issue_type = issueType
+    if (serviceMethod) params.service_method = serviceMethod
+    return api.get<ServiceTicket[]>('/service-tickets', { params })
+  },
+  get: (id: number) => api.get<ServiceTicket>(`/service-tickets/${id}`),
+  create: (data: ServiceTicket) => api.post<ServiceTicket>('/service-tickets', data),
+  update: (id: number, data: Partial<ServiceTicket>) => api.put<ServiceTicket>(`/service-tickets/${id}`, data),
+  delete: (id: number) => api.delete(`/service-tickets/${id}`),
+  getMeta: () => api.get<ServiceTicketMeta>('/service-tickets/meta')
 }
 
 export default api

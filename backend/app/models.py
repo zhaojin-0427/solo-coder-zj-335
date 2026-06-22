@@ -1,5 +1,13 @@
 from app import db
-from datetime import datetime
+from datetime import datetime, timedelta
+
+CONSUMABLE_TYPES = ['耳塞', '导声管', '干燥盒', '电池', '清洁刷', '其他']
+EAR_OPTIONS = ['左耳', '右耳', '双耳', '不适用']
+SERVICE_TICKET_TYPES = ['耗材损坏', '佩戴不稳', '声音变闷', '清洁困难', '其他']
+SERVICE_METHODS = ['上门服务', '到店服务']
+SERVICE_TICKET_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled']
+LOW_STOCK_THRESHOLD = 3
+REPLACEMENT_WARN_DAYS = 7
 
 class Profile(db.Model):
     __tablename__ = 'profiles'
@@ -250,6 +258,124 @@ class Task(db.Model):
             'related_followup_id': self.related_followup_id,
             'is_overdue': is_overdue,
             'days_until_due': days_until_due,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+
+class Consumable(db.Model):
+    __tablename__ = 'consumables'
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    consumable_type = db.Column(db.String(50), nullable=False)
+    ear = db.Column(db.String(20))
+    start_date = db.Column(db.Date)
+    replacement_cycle_days = db.Column(db.Integer)
+    stock_quantity = db.Column(db.Integer, default=0)
+    last_replacement_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        from app import db
+        profile = Profile.query.get(self.profile_id)
+
+        next_replacement_date = None
+        days_until_replacement = None
+        is_overdue = False
+        is_soon_due = False
+        is_low_stock = self.stock_quantity is not None and self.stock_quantity <= LOW_STOCK_THRESHOLD
+
+        if self.last_replacement_date and self.replacement_cycle_days:
+            next_replacement_date = self.last_replacement_date + timedelta(days=self.replacement_cycle_days)
+        elif self.start_date and self.replacement_cycle_days:
+            next_replacement_date = self.start_date + timedelta(days=self.replacement_cycle_days)
+
+        if next_replacement_date:
+            today = datetime.utcnow().date()
+            delta = (next_replacement_date - today).days
+            days_until_replacement = delta
+            is_overdue = delta < 0
+            is_soon_due = 0 <= delta <= REPLACEMENT_WARN_DAYS
+
+        status = 'normal'
+        if is_overdue:
+            status = 'overdue'
+        elif is_soon_due:
+            status = 'soon_due'
+        elif is_low_stock:
+            status = 'low_stock'
+
+        return {
+            'id': self.id,
+            'profile_id': self.profile_id,
+            'elderly_name': profile.elderly_name if profile else None,
+            'name': self.name,
+            'consumable_type': self.consumable_type,
+            'ear': self.ear,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'replacement_cycle_days': self.replacement_cycle_days,
+            'stock_quantity': self.stock_quantity,
+            'last_replacement_date': self.last_replacement_date.isoformat() if self.last_replacement_date else None,
+            'next_replacement_date': next_replacement_date.isoformat() if next_replacement_date else None,
+            'days_until_replacement': days_until_replacement,
+            'notes': self.notes,
+            'is_overdue': is_overdue,
+            'is_soon_due': is_soon_due,
+            'is_low_stock': is_low_stock,
+            'status': status,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+
+class ServiceTicket(db.Model):
+    __tablename__ = 'service_tickets'
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
+    consumable_id = db.Column(db.Integer, db.ForeignKey('consumables.id'))
+    issue_type = db.Column(db.String(50), nullable=False)
+    service_method = db.Column(db.String(50))
+    appointment_time = db.Column(db.DateTime)
+    handler = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='pending')
+    result = db.Column(db.Text)
+    description = db.Column(db.Text)
+    photo_urls = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        from app import db
+        profile = Profile.query.get(self.profile_id)
+        consumable = Consumable.query.get(self.consumable_id) if self.consumable_id else None
+
+        photo_list = []
+        if self.photo_urls:
+            try:
+                import json
+                photo_list = json.loads(self.photo_urls)
+            except (json.JSONDecodeError, TypeError):
+                photo_list = [u.strip() for u in self.photo_urls.split(',') if u.strip()]
+
+        return {
+            'id': self.id,
+            'profile_id': self.profile_id,
+            'elderly_name': profile.elderly_name if profile else None,
+            'consumable_id': self.consumable_id,
+            'consumable_name': consumable.name if consumable else None,
+            'issue_type': self.issue_type,
+            'service_method': self.service_method,
+            'appointment_time': self.appointment_time.isoformat() if self.appointment_time else None,
+            'handler': self.handler,
+            'status': self.status,
+            'result': self.result,
+            'description': self.description,
+            'photo_urls': photo_list,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
